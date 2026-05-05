@@ -7,7 +7,7 @@ export default function TemplateBuilderPage() {
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden">
       <Navbar />
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         <LeftSidebar />
         <Canvas />
         <RightSidebar />

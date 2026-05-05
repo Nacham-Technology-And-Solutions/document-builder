@@ -1,8 +1,8 @@
 "use client"
 
 import { create } from "zustand"
-import { createDefaultBlock, initialBuilderState } from "@/lib/builder/default-template"
-import type { BuilderState, FlowBlock, FlowBlockType } from "@/lib/builder/types"
+import { createDefaultBlock, createDefaultFloatingElement, initialBuilderState } from "@/lib/builder/default-template"
+import type { BuilderState, FloatingElementType, FlowBlock, FlowBlockType } from "@/lib/builder/types"
 
 interface BuilderActions {
   setTitle: (title: string) => void
@@ -12,7 +12,16 @@ interface BuilderActions {
   updateDynamicTableProps: (id: string, partial: Partial<Extract<FlowBlock, { type: "dynamic-table" }>["props"]>) => void
   removeFlowBlock: (id: string) => void
   reorderFlowBlocks: (fromIndex: number, toIndex: number) => void
+  addFloatingElement: (type: FloatingElementType) => void
+  updateFloatingElement: (id: string, partial: Partial<BuilderState["floatingElements"][number]>) => void
+  removeFloatingElement: (id: string) => void
+  nudgeFloatingElement: (id: string, dx: number, dy: number) => void
+  bringFloatingForward: (id: string) => void
+  sendFloatingBackward: (id: string) => void
+  bringFloatingToFront: (id: string) => void
+  sendFloatingToBack: (id: string) => void
   selectFlowBlock: (id: string | null) => void
+  selectFloatingElement: (id: string | null) => void
   clearSelection: () => void
   loadFromTemplate: (state: BuilderState) => void
 }
@@ -75,10 +84,75 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
       next.splice(toIndex, 0, moved)
       return { flowBlocks: next }
     }),
+  addFloatingElement: (type) =>
+    set((state) => {
+      const element = createDefaultFloatingElement(type)
+      return {
+        floatingElements: [...state.floatingElements, element],
+        selection: {
+          kind: "floating",
+          id: element.id,
+        },
+      }
+    }),
+  updateFloatingElement: (id, partial) =>
+    set((state) => ({
+      floatingElements: state.floatingElements.map((element) =>
+        element.id === id ? { ...element, ...partial } : element
+      ),
+    })),
+  removeFloatingElement: (id) =>
+    set((state) => ({
+      floatingElements: state.floatingElements.filter((element) => element.id !== id),
+      selection: state.selection.id === id ? { kind: null, id: null } : state.selection,
+    })),
+  nudgeFloatingElement: (id, dx, dy) =>
+    set((state) => ({
+      floatingElements: state.floatingElements.map((element) =>
+        element.id === id ? { ...element, x: element.x + dx, y: element.y + dy } : element
+      ),
+    })),
+  bringFloatingForward: (id) =>
+    set((state) => ({
+      floatingElements: state.floatingElements.map((element) =>
+        element.id === id ? { ...element, zIndex: element.zIndex + 1 } : element
+      ),
+    })),
+  sendFloatingBackward: (id) =>
+    set((state) => ({
+      floatingElements: state.floatingElements.map((element) =>
+        element.id === id ? { ...element, zIndex: element.zIndex - 1 } : element
+      ),
+    })),
+  bringFloatingToFront: (id) =>
+    set((state) => {
+      const maxZ = state.floatingElements.reduce((max, item) => Math.max(max, item.zIndex), 0)
+      return {
+        floatingElements: state.floatingElements.map((element) =>
+          element.id === id ? { ...element, zIndex: maxZ + 1 } : element
+        ),
+      }
+    }),
+  sendFloatingToBack: (id) =>
+    set((state) => {
+      const minZ = state.floatingElements.reduce((min, item) => Math.min(min, item.zIndex), 0)
+      return {
+        floatingElements: state.floatingElements.map((element) =>
+          element.id === id ? { ...element, zIndex: minZ - 1 } : element
+        ),
+      }
+    }),
   selectFlowBlock: (id) =>
     set({
       selection: {
         kind: id ? "flow" : null,
+        id,
+      },
+    }),
+  selectFloatingElement: (id) =>
+    set({
+      selection: {
+        kind: id ? "floating" : null,
         id,
       },
     }),

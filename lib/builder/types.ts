@@ -81,9 +81,11 @@ export type FlowBlock =
 
 export type AnchorMode = "page" | "block"
 
+export type FloatingElementType = "image" | "text" | "pattern" | "stamp"
+
 export interface FloatingElement {
   id: string
-  type: "image" | "text" | "pattern" | "stamp"
+  type: FloatingElementType
   anchorMode: AnchorMode
   anchorTargetId?: string
   x: number
@@ -91,6 +93,8 @@ export interface FloatingElement {
   width: number
   height: number
   zIndex: number
+  content?: string
+  src?: string
 }
 
 export interface BuilderSelection {

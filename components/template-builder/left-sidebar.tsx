@@ -15,13 +15,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useBuilderStore } from "@/lib/builder/store"
-import type { FlowBlockType } from "@/lib/builder/types"
+import type { FloatingElementType, FlowBlockType } from "@/lib/builder/types"
 
 interface BlockItemProps {
   icon: React.ReactNode
   label: string
   description: string
   blockType?: FlowBlockType
+  floatingType?: FloatingElementType
   onClick?: () => void
 }
 
@@ -83,27 +84,32 @@ const floatingElements: BlockItemProps[] = [
   { 
     icon: <ImageIcon className="w-4 h-4 text-muted-foreground" />, 
     label: "Logo / Image", 
-    description: "Upload or placeholder" 
+    description: "Upload or placeholder",
+    floatingType: "image",
   },
   { 
     icon: <Type className="w-4 h-4 text-muted-foreground" />, 
     label: "Text Box", 
-    description: "Free-form text" 
+    description: "Free-form text",
+    floatingType: "text",
   },
   { 
     icon: <Sparkles className="w-4 h-4 text-muted-foreground" />, 
     label: "Background Pattern", 
-    description: "Decorative overlay" 
+    description: "Decorative overlay",
+    floatingType: "pattern",
   },
   { 
     icon: <Stamp className="w-4 h-4 text-muted-foreground" />, 
     label: "PAID Stamp", 
-    description: "Status watermark" 
+    description: "Status watermark",
+    floatingType: "stamp",
   },
 ]
 
 export function LeftSidebar() {
   const addFlowBlock = useBuilderStore((state) => state.addFlowBlock)
+  const addFloatingElement = useBuilderStore((state) => state.addFloatingElement)
 
   return (
     <aside className="w-[300px] border-r border-border bg-card flex flex-col">
@@ -132,7 +138,13 @@ export function LeftSidebar() {
           </TabsContent>
           <TabsContent value="floating" className="mt-0 space-y-2">
             {floatingElements.map((element) => (
-              <BlockItem key={element.label} {...element} />
+              <BlockItem
+                key={element.label}
+                {...element}
+                onClick={() => {
+                  if (element.floatingType) addFloatingElement(element.floatingType)
+                }}
+              />
             ))}
           </TabsContent>
         </ScrollArea>

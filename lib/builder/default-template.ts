@@ -1,4 +1,4 @@
-import type { BuilderState, FlowBlock, FlowBlockType } from "@/lib/builder/types"
+import type { BuilderState, FloatingElement, FloatingElementType, FlowBlock, FlowBlockType } from "@/lib/builder/types"
 
 const buildId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -66,6 +66,58 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           heading: "Notes",
           lines: ["{{ invoice.notes }}"],
         },
+      }
+  }
+}
+
+export const createDefaultFloatingElement = (type: FloatingElementType): FloatingElement => {
+  switch (type) {
+    case "image":
+      return {
+        id: buildId(),
+        type: "image",
+        anchorMode: "page",
+        x: 420,
+        y: 24,
+        width: 120,
+        height: 56,
+        zIndex: 20,
+        content: "Logo",
+      }
+    case "text":
+      return {
+        id: buildId(),
+        type: "text",
+        anchorMode: "page",
+        x: 32,
+        y: 760,
+        width: 260,
+        height: 24,
+        zIndex: 30,
+        content: "{{ company.phone }} | {{ company.email }}",
+      }
+    case "pattern":
+      return {
+        id: buildId(),
+        type: "pattern",
+        anchorMode: "page",
+        x: -24,
+        y: -24,
+        width: 240,
+        height: 160,
+        zIndex: 0,
+      }
+    case "stamp":
+      return {
+        id: buildId(),
+        type: "stamp",
+        anchorMode: "page",
+        x: 440,
+        y: 96,
+        width: 88,
+        height: 88,
+        zIndex: 25,
+        content: "PAID",
       }
   }
 }

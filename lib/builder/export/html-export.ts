@@ -1,4 +1,4 @@
-import type { BuilderState, FlowBlock } from "@/lib/builder/types"
+import type { BuilderState, FloatingElement, FlowBlock } from "@/lib/builder/types"
 import { buildLoopEndMarker, buildLoopStartMarker } from "@/lib/builder/export/token-utils"
 
 const alignCss: Record<string, string> = {
@@ -90,6 +90,33 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
   }
 }
 
+const renderFloatingElementHtml = (element: FloatingElement) => {
+  const style = `position:absolute;left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;z-index:${element.zIndex};`
+
+  if (element.type === "image") {
+    if (element.src) {
+      return `<div style="${style}"><img src="${escapeHtml(element.src)}" alt="${escapeHtml(element.content || "image")}" style="width:100%;height:100%;object-fit:contain;" /></div>`
+    }
+    return `<div style="${style}border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b;">${escapeHtml(
+      element.content || "Upload logo"
+    )}</div>`
+  }
+
+  if (element.type === "text") {
+    return `<div style="${style}display:flex;align-items:center;padding:0 8px;border:1px solid #e5e7eb;border-radius:6px;background:rgba(255,255,255,.9);font-size:14px;">${escapeHtml(
+      element.content || ""
+    )}</div>`
+  }
+
+  if (element.type === "stamp") {
+    return `<div style="${style}display:flex;align-items:center;justify-content:center;"><div style="width:100%;height:100%;border-radius:9999px;border:4px solid #10b981;display:flex;align-items:center;justify-content:center;transform:rotate(-15deg);background:rgba(255,255,255,.8);font-weight:700;color:#10b981;">${escapeHtml(
+      element.content || "PAID"
+    )}</div></div>`
+  }
+
+  return `<div style="${style}border-radius:8px;background:radial-gradient(circle at 1px 1px, rgba(30,41,59,0.22) 1px, transparent 0), linear-gradient(135deg, rgba(51,65,85,0.12), rgba(59,130,246,0.08));background-size:10px 10px, auto;"></div>`
+}
+
 const baseStyles = (state: BuilderState) => `
 * { box-sizing: border-box; }
 body { margin: 0; background: #f5f5f5; padding: 24px; font-family: ${state.documentSettings.fontFamily}; }
@@ -118,6 +145,11 @@ th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
 
 export const generateHtmlExport = (state: BuilderState) => {
   const blocksHtml = state.flowBlocks.map(renderFlowBlockHtml).join("\n")
+  const floatingHtml = state.floatingElements
+    .slice()
+    .sort((a, b) => a.zIndex - b.zIndex)
+    .map(renderFloatingElementHtml)
+    .join("\n")
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -130,6 +162,7 @@ export const generateHtmlExport = (state: BuilderState) => {
 <body>
   <div class="document-wrapper">
 ${blocksHtml}
+${floatingHtml}
   </div>
 </body>
 </html>`
