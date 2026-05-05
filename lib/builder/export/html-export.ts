@@ -19,15 +19,15 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
   switch (block.type) {
     case "header-banner":
       return `
-<section class="block card banner">
+<section class="block card banner" style="background:${escapeHtml(block.props.backgroundColor)};border-color:${escapeHtml(block.props.backgroundColor)};color:${escapeHtml(block.props.textColor)};">
   <div class="banner-content">
     <div>
-      <h1>${escapeHtml(block.props.heading)}</h1>
-      <p>${escapeHtml(block.props.companyNameToken)}</p>
+      <h1 style="font-size:${block.props.headingFontSize}px;color:${escapeHtml(block.props.textColor)};">${escapeHtml(block.props.heading)}</h1>
+      <p style="color:${escapeHtml(block.props.mutedTextColor)};">${escapeHtml(block.props.companyNameToken)}</p>
     </div>
     <div class="right">
-      <p>Invoice # ${escapeHtml(block.props.invoiceNumberToken)}</p>
-      <p>${escapeHtml(block.props.dateToken)}</p>
+      <p style="color:${escapeHtml(block.props.mutedTextColor)};">Invoice # ${escapeHtml(block.props.invoiceNumberToken)}</p>
+      <p style="color:${escapeHtml(block.props.mutedTextColor)};">${escapeHtml(block.props.dateToken)}</p>
     </div>
   </div>
 </section>`
@@ -36,12 +36,12 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
 <section class="block card">
   <div class="grid-2">
     <div>
-      <p class="label">${escapeHtml(block.props.billToLabel)}</p>
-      ${block.props.leftLines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+      <p class="label" style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.billToLabel)}</p>
+      ${block.props.leftLines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${escapeHtml(line)}</p>`).join("")}
     </div>
     <div>
-      <p class="label">${escapeHtml(block.props.payToLabel)}</p>
-      ${block.props.rightLines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+      <p class="label" style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.payToLabel)}</p>
+      ${block.props.rightLines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${escapeHtml(line)}</p>`).join("")}
     </div>
   </div>
 </section>`
@@ -49,12 +49,12 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
       const loopStart = buildLoopStartMarker(block.props.repeaterKey, block.props.itemAlias)
       const loopEnd = buildLoopEndMarker()
       return `
-<section class="block card table-wrap">
-  <table>
+<section class="block card table-wrap" style="border-color:${escapeHtml(block.props.borderColor)};">
+  <table style="font-size:${block.props.fontSize}px;">
     <thead>
-      <tr>
+      <tr style="background:${escapeHtml(block.props.headerBackgroundColor)};">
         ${block.props.columns
-          .map((column) => `<th style="text-align:${alignCss[column.align] ?? "left"}">${escapeHtml(column.label)}</th>`)
+          .map((column) => `<th style="text-align:${alignCss[column.align] ?? "left"};color:${escapeHtml(block.props.headerTextColor)};">${escapeHtml(column.label)}</th>`)
           .join("")}
       </tr>
     </thead>
@@ -64,7 +64,7 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
         ${block.props.columns
           .map(
             (column) =>
-              `<td style="text-align:${alignCss[column.align] ?? "left"}">{{ ${block.props.itemAlias}.${column.key} }}</td>`
+              `<td style="text-align:${alignCss[column.align] ?? "left"};color:${escapeHtml(block.props.rowTextColor)};">{{ ${block.props.itemAlias}.${column.key} }}</td>`
           )
           .join("")}
       </tr>
@@ -76,16 +76,23 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
       return `
 <section class="block totals-wrap">
   <div class="card totals">
-    <div class="line"><span>Subtotal</span><span>${escapeHtml(block.props.subtotalToken)}</span></div>
-    <div class="line"><span>${escapeHtml(block.props.taxLabel)}</span><span>${escapeHtml(block.props.taxToken)}</span></div>
-    <div class="line total"><span>Total</span><span>${escapeHtml(block.props.totalToken)}</span></div>
+    <div class="line"><span style="color:${escapeHtml(block.props.labelColor)};">Subtotal</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(block.props.subtotalToken)}</span></div>
+    <div class="line"><span style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.taxLabel)}</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(block.props.taxToken)}</span></div>
+    <div class="line total" style="border-color:${escapeHtml(block.props.accentColor)};"><span style="color:${escapeHtml(block.props.valueColor)};">Total</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(block.props.totalToken)}</span></div>
   </div>
 </section>`
     case "footer-block":
       return `
 <section class="block card">
-  <p class="footer-title">${escapeHtml(block.props.heading)}</p>
-  ${block.props.lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+  <p class="footer-title" style="color:${escapeHtml(block.props.headingColor)};">${escapeHtml(block.props.heading)}</p>
+  ${block.props.lines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${escapeHtml(line)}</p>`).join("")}
+</section>`
+    case "custom-html":
+      return `
+<section class="block card">
+  <p class="footer-title">${escapeHtml(block.props.label)}</p>
+  ${block.props.css ? `<style>${block.props.css}</style>` : ""}
+  ${block.props.html}
 </section>`
   }
 }
@@ -120,7 +127,7 @@ const renderFloatingElementHtml = (element: FloatingElement) => {
 const baseStyles = (state: BuilderState) => `
 * { box-sizing: border-box; }
 body { margin: 0; background: #f5f5f5; padding: 24px; font-family: ${state.documentSettings.fontFamily}; }
-.document-wrapper { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #111827; font-size: ${state.documentSettings.baseFontSize}px; padding: 24px; }
+.document-wrapper { position: relative; overflow: hidden; width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #111827; font-size: ${state.documentSettings.baseFontSize}px; padding: 24px; }
 .block { margin-bottom: 16px; }
 .card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; }
 .banner { background: ${state.documentSettings.primaryColor}; border-color: ${state.documentSettings.primaryColor}; color: #fff; }

@@ -83,6 +83,16 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           textColor: "#64748b",
         },
       }
+    case "custom-html":
+      return {
+        id: buildId(),
+        type: "custom-html",
+        props: {
+          label: "Custom HTML Block",
+          html: "<div><strong>Custom content</strong></div>",
+          css: "div { color: #334155; font-size: 14px; }",
+        },
+      }
   }
 }
 

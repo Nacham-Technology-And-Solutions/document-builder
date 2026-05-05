@@ -78,6 +78,12 @@ const flowBlocks: BlockItemProps[] = [
     description: "Terms and notes",
     blockType: "footer-block",
   },
+  {
+    icon: <Type className="w-4 h-4 text-muted-foreground" />,
+    label: "Custom HTML",
+    description: "User-defined HTML/CSS block",
+    blockType: "custom-html",
+  },
 ]
 
 const floatingElements: BlockItemProps[] = [

@@ -15,7 +15,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useBuilderStore } from "@/lib/builder/store"
-import type { DynamicTableBlock, FloatingElement } from "@/lib/builder/types"
+import type { DynamicTableBlock, FloatingElement, FlowBlock } from "@/lib/builder/types"
 
 const themeColors = [
   { name: "Slate", color: "#334155" },
@@ -62,10 +62,28 @@ export function RightSidebar() {
     [floatingElements]
   )
 
-  const updateSelectedFlow = (updater: (block: any) => any) => {
+  const updateSelectedFlow = (updater: (block: FlowBlock) => FlowBlock) => {
     if (!selectedBlock) return
-    updateFlowBlock(selectedBlock.id, (block) => updater(block))
+    updateFlowBlock(selectedBlock.id, (block) => updater(block as FlowBlock))
   }
+
+  const ColorField = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string
+    value: string
+    onChange: (next: string) => void
+  }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex gap-2">
+        <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-sm font-mono" />
+        <Input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-12 p-1" />
+      </div>
+    </div>
+  )
 
   return (
     <aside className="w-[320px] border-l border-border bg-card flex flex-col min-h-0">
@@ -140,9 +158,54 @@ export function RightSidebar() {
           {selectedDynamicTable && (
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Table Columns</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <ColorField
+                  label="Header BG"
+                  value={selectedDynamicTable.props.headerBackgroundColor}
+                  onChange={(next) => updateDynamicTableProps(selectedDynamicTable.id, { headerBackgroundColor: next })}
+                />
+                <ColorField
+                  label="Header Text"
+                  value={selectedDynamicTable.props.headerTextColor}
+                  onChange={(next) => updateDynamicTableProps(selectedDynamicTable.id, { headerTextColor: next })}
+                />
+                <ColorField
+                  label="Row Text"
+                  value={selectedDynamicTable.props.rowTextColor}
+                  onChange={(next) => updateDynamicTableProps(selectedDynamicTable.id, { rowTextColor: next })}
+                />
+                <ColorField
+                  label="Border Color"
+                  value={selectedDynamicTable.props.borderColor}
+                  onChange={(next) => updateDynamicTableProps(selectedDynamicTable.id, { borderColor: next })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Font Size</Label>
+                <Input
+                  type="number"
+                  value={selectedDynamicTable.props.fontSize}
+                  onChange={(event) =>
+                    updateDynamicTableProps(selectedDynamicTable.id, { fontSize: Number(event.target.value || 0) })
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
               <div className="space-y-3">
                 {selectedDynamicTable.props.columns.map((column, index) => (
                   <div key={column.key} className="space-y-2 rounded-md border border-border p-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Column Key</Label>
+                      <Input
+                        value={column.key}
+                        onChange={(event) => {
+                          const nextColumns = [...selectedDynamicTable.props.columns]
+                          nextColumns[index] = { ...nextColumns[index], key: event.target.value }
+                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
+                        }}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Column Label</Label>
                       <Input
@@ -197,28 +260,74 @@ export function RightSidebar() {
                   className="h-8 text-sm"
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Company Token</Label>
+                <Input
+                  value={selectedBlock.props.companyNameToken}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, companyNameToken: event.target.value },
+                    }))
+                  }
+                  className="h-8 text-sm font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Invoice Number Token</Label>
+                <Input
+                  value={selectedBlock.props.invoiceNumberToken}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, invoiceNumberToken: event.target.value },
+                    }))
+                  }
+                  className="h-8 text-sm font-mono"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-2">
+                <ColorField
+                  label="Background"
+                  value={selectedBlock.props.backgroundColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, backgroundColor: next },
+                    }))
+                  }
+                />
+                <ColorField
+                  label="Title Color"
+                  value={selectedBlock.props.textColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, textColor: next },
+                    }))
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ColorField
+                  label="Muted Text"
+                  value={selectedBlock.props.mutedTextColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, mutedTextColor: next },
+                    }))
+                  }
+                />
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Background</Label>
+                  <Label className="text-xs">Heading Size</Label>
                   <Input
-                    value={selectedBlock.props.backgroundColor}
+                    type="number"
+                    value={selectedBlock.props.headingFontSize}
                     onChange={(event) =>
                       updateSelectedFlow((block) => ({
                         ...block,
-                        props: { ...block.props, backgroundColor: event.target.value },
-                      }))
-                    }
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Title Color</Label>
-                  <Input
-                    value={selectedBlock.props.textColor}
-                    onChange={(event) =>
-                      updateSelectedFlow((block) => ({
-                        ...block,
-                        props: { ...block.props, textColor: event.target.value },
+                        props: { ...(block as typeof selectedBlock).props, headingFontSize: Number(event.target.value || 0) },
                       }))
                     }
                     className="h-8 text-sm"
@@ -233,31 +342,85 @@ export function RightSidebar() {
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meta Grid Style</h3>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Label Color</Label>
+                  <Label className="text-xs">Left Label</Label>
                   <Input
-                    value={selectedBlock.props.labelColor}
+                    value={selectedBlock.props.billToLabel}
                     onChange={(event) =>
                       updateSelectedFlow((block) => ({
                         ...block,
-                        props: { ...block.props, labelColor: event.target.value },
+                        props: { ...(block as typeof selectedBlock).props, billToLabel: event.target.value },
                       }))
                     }
                     className="h-8 text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Text Color</Label>
+                  <Label className="text-xs">Right Label</Label>
                   <Input
-                    value={selectedBlock.props.textColor}
+                    value={selectedBlock.props.payToLabel}
                     onChange={(event) =>
                       updateSelectedFlow((block) => ({
                         ...block,
-                        props: { ...block.props, textColor: event.target.value },
+                        props: { ...(block as typeof selectedBlock).props, payToLabel: event.target.value },
                       }))
                     }
                     className="h-8 text-sm"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ColorField
+                  label="Label Color"
+                  value={selectedBlock.props.labelColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, labelColor: next },
+                    }))
+                  }
+                />
+                <ColorField
+                  label="Text Color"
+                  value={selectedBlock.props.textColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, textColor: next },
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Left Lines (one per line)</Label>
+                <textarea
+                  value={selectedBlock.props.leftLines.join("\n")}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: {
+                        ...(block as typeof selectedBlock).props,
+                        leftLines: event.target.value.split("\n"),
+                      },
+                    }))
+                  }
+                  className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Right Lines (one per line)</Label>
+                <textarea
+                  value={selectedBlock.props.rightLines.join("\n")}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: {
+                        ...(block as typeof selectedBlock).props,
+                        rightLines: event.target.value.split("\n"),
+                      },
+                    }))
+                  }
+                  className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
+                />
               </div>
             </section>
           )}
@@ -265,31 +428,89 @@ export function RightSidebar() {
           {selectedBlock?.type === "totals-block" && (
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Totals Style</h3>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tax Label</Label>
+                <Input
+                  value={selectedBlock.props.taxLabel}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, taxLabel: event.target.value },
+                    }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-2">
+                <ColorField
+                  label="Label Color"
+                  value={selectedBlock.props.labelColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, labelColor: next },
+                    }))
+                  }
+                />
+                <ColorField
+                  label="Value Color"
+                  value={selectedBlock.props.valueColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, valueColor: next },
+                    }))
+                  }
+                />
+              </div>
+              <ColorField
+                label="Accent Color"
+                value={selectedBlock.props.accentColor}
+                onChange={(next) =>
+                  updateSelectedFlow((block) => ({
+                    ...block,
+                    props: { ...(block as typeof selectedBlock).props, accentColor: next },
+                  }))
+                }
+              />
+              <div className="grid grid-cols-1 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Label Color</Label>
+                  <Label className="text-xs">Subtotal Token</Label>
                   <Input
-                    value={selectedBlock.props.labelColor}
+                    value={selectedBlock.props.subtotalToken}
                     onChange={(event) =>
                       updateSelectedFlow((block) => ({
                         ...block,
-                        props: { ...block.props, labelColor: event.target.value },
+                        props: { ...(block as typeof selectedBlock).props, subtotalToken: event.target.value },
                       }))
                     }
-                    className="h-8 text-sm"
+                    className="h-8 text-sm font-mono"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Value Color</Label>
+                  <Label className="text-xs">Tax Token</Label>
                   <Input
-                    value={selectedBlock.props.valueColor}
+                    value={selectedBlock.props.taxToken}
                     onChange={(event) =>
                       updateSelectedFlow((block) => ({
                         ...block,
-                        props: { ...block.props, valueColor: event.target.value },
+                        props: { ...(block as typeof selectedBlock).props, taxToken: event.target.value },
                       }))
                     }
-                    className="h-8 text-sm"
+                    className="h-8 text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Total Token</Label>
+                  <Input
+                    value={selectedBlock.props.totalToken}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, totalToken: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm font-mono"
                   />
                 </div>
               </div>
@@ -300,32 +521,97 @@ export function RightSidebar() {
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Footer Style</h3>
               <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Heading Color</Label>
-                  <Input
-                    value={selectedBlock.props.headingColor}
-                    onChange={(event) =>
-                      updateSelectedFlow((block) => ({
-                        ...block,
-                        props: { ...block.props, headingColor: event.target.value },
-                      }))
-                    }
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Text Color</Label>
-                  <Input
-                    value={selectedBlock.props.textColor}
-                    onChange={(event) =>
-                      updateSelectedFlow((block) => ({
-                        ...block,
-                        props: { ...block.props, textColor: event.target.value },
-                      }))
-                    }
-                    className="h-8 text-sm"
-                  />
-                </div>
+                <ColorField
+                  label="Heading Color"
+                  value={selectedBlock.props.headingColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, headingColor: next },
+                    }))
+                  }
+                />
+                <ColorField
+                  label="Text Color"
+                  value={selectedBlock.props.textColor}
+                  onChange={(next) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, textColor: next },
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heading</Label>
+                <Input
+                  value={selectedBlock.props.heading}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, heading: event.target.value },
+                    }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Lines (one per line)</Label>
+                <textarea
+                  value={selectedBlock.props.lines.join("\n")}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, lines: event.target.value.split("\n") },
+                    }))
+                  }
+                  className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
+                />
+              </div>
+            </section>
+          )}
+
+          {selectedBlock?.type === "custom-html" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom HTML Block</h3>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Block Label</Label>
+                <Input
+                  value={selectedBlock.props.label}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, label: event.target.value },
+                    }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">HTML</Label>
+                <textarea
+                  value={selectedBlock.props.html}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, html: event.target.value },
+                    }))
+                  }
+                  className="w-full min-h-24 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">CSS</Label>
+                <textarea
+                  value={selectedBlock.props.css}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, css: event.target.value },
+                    }))
+                  }
+                  className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
+                />
               </div>
             </section>
           )}
@@ -611,6 +897,11 @@ export function RightSidebar() {
                 </button>
               ))}
             </div>
+            <ColorField
+              label="Primary Color (Hex)"
+              value={documentSettings.primaryColor}
+              onChange={(next) => setDocumentSettings({ primaryColor: next })}
+            />
           </section>
 
           <section className="space-y-3">

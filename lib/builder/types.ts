@@ -15,6 +15,7 @@ export type FlowBlockType =
   | "dynamic-table"
   | "totals-block"
   | "footer-block"
+  | "custom-html"
 
 interface BaseFlowBlock {
   id: string
@@ -88,12 +89,22 @@ export interface FooterBlock extends BaseFlowBlock {
   }
 }
 
+export interface CustomHtmlBlock extends BaseFlowBlock {
+  type: "custom-html"
+  props: {
+    label: string
+    html: string
+    css: string
+  }
+}
+
 export type FlowBlock =
   | HeaderBannerBlock
   | InvoiceMetaGridBlock
   | DynamicTableBlock
   | TotalsBlock
   | FooterBlock
+  | CustomHtmlBlock
 
 export type AnchorMode = "page" | "block"
 

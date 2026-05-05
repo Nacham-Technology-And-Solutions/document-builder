@@ -154,6 +154,14 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string) {
           </table>
         </div>
       )
+    case "custom-html":
+      return (
+        <div className="border border-border rounded-md p-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{block.props.label}</p>
+          {block.props.css ? <style>{block.props.css}</style> : null}
+          <div dangerouslySetInnerHTML={{ __html: block.props.html }} />
+        </div>
+      )
     case "totals-block":
       return (
         <div className="flex justify-end">
