@@ -14,16 +14,24 @@ import {
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useBuilderStore } from "@/lib/builder/store"
+import type { FlowBlockType } from "@/lib/builder/types"
 
 interface BlockItemProps {
   icon: React.ReactNode
   label: string
   description: string
+  blockType?: FlowBlockType
+  onClick?: () => void
 }
 
-function BlockItem({ icon, label, description }: BlockItemProps) {
+function BlockItem({ icon, label, description, onClick }: BlockItemProps) {
   return (
-    <div className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent hover:border-primary/30 cursor-grab transition-colors">
+    <button
+      type="button"
+      onClick={onClick}
+      className="group w-full text-left flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent hover:border-primary/30 cursor-pointer transition-colors"
+    >
       <div className="flex items-center gap-2 flex-1">
         <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
           {icon}
@@ -34,7 +42,7 @@ function BlockItem({ icon, label, description }: BlockItemProps) {
         </div>
       </div>
       <GripVertical className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-    </div>
+    </button>
   )
 }
 
@@ -42,27 +50,32 @@ const flowBlocks: BlockItemProps[] = [
   { 
     icon: <LayoutTemplate className="w-4 h-4 text-muted-foreground" />, 
     label: "Header Banner", 
-    description: "Top section with branding" 
+    description: "Top section with branding",
+    blockType: "header-banner",
   },
   { 
     icon: <Grid3X3 className="w-4 h-4 text-muted-foreground" />, 
     label: "Invoice Meta Grid", 
-    description: "Invoice details layout" 
+    description: "Invoice details layout",
+    blockType: "invoice-meta-grid",
   },
   { 
     icon: <Table className="w-4 h-4 text-muted-foreground" />, 
     label: "Dynamic Table", 
-    description: "Line items with loop" 
+    description: "Line items with loop",
+    blockType: "dynamic-table",
   },
   { 
     icon: <Calculator className="w-4 h-4 text-muted-foreground" />, 
     label: "Totals Block", 
-    description: "Subtotal, tax, total" 
+    description: "Subtotal, tax, total",
+    blockType: "totals-block",
   },
   { 
     icon: <FileText className="w-4 h-4 text-muted-foreground" />, 
     label: "Footer", 
-    description: "Terms and notes" 
+    description: "Terms and notes",
+    blockType: "footer-block",
   },
 ]
 
@@ -90,6 +103,8 @@ const floatingElements: BlockItemProps[] = [
 ]
 
 export function LeftSidebar() {
+  const addFlowBlock = useBuilderStore((state) => state.addFlowBlock)
+
   return (
     <aside className="w-[300px] border-r border-border bg-card flex flex-col">
       <div className="p-4 border-b border-border">
@@ -106,7 +121,13 @@ export function LeftSidebar() {
         <ScrollArea className="flex-1 px-4 py-3">
           <TabsContent value="flow" className="mt-0 space-y-2">
             {flowBlocks.map((block) => (
-              <BlockItem key={block.label} {...block} />
+              <BlockItem
+                key={block.label}
+                {...block}
+                onClick={() => {
+                  if (block.blockType) addFlowBlock(block.blockType)
+                }}
+              />
             ))}
           </TabsContent>
           <TabsContent value="floating" className="mt-0 space-y-2">

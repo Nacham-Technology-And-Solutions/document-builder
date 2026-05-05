@@ -1,6 +1,6 @@
 "use client"
 
-import { Table, Anchor, Palette } from "lucide-react"
+import { Table, Palette, Type } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
@@ -10,8 +10,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useBuilderStore } from "@/lib/builder/store"
+import type { DynamicTableBlock } from "@/lib/builder/types"
 
 const themeColors = [
   { name: "Slate", color: "#334155" },
@@ -22,47 +23,76 @@ const themeColors = [
 ]
 
 export function RightSidebar() {
+  const flowBlocks = useBuilderStore((state) => state.flowBlocks)
+  const selection = useBuilderStore((state) => state.selection)
+  const documentSettings = useBuilderStore((state) => state.documentSettings)
+  const setDocumentSettings = useBuilderStore((state) => state.setDocumentSettings)
+  const updateDynamicTableProps = useBuilderStore((state) => state.updateDynamicTableProps)
+
+  const selectedBlock = flowBlocks.find(
+    (block) => selection.kind === "flow" && selection.id === block.id
+  )
+  const selectedDynamicTable =
+    selectedBlock?.type === "dynamic-table" ? (selectedBlock as DynamicTableBlock) : null
+
   return (
     <aside className="w-[300px] border-l border-border bg-card flex flex-col">
-      {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
             <Table className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Dynamic Table Block</h2>
-            <p className="text-xs text-muted-foreground">Configure properties</p>
+            <h2 className="text-sm font-semibold text-foreground">
+              {selectedBlock ? "Block Properties" : "Inspector"}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {selectedBlock ? `Editing ${selectedBlock.type}` : "Select a block to edit"}
+            </p>
           </div>
         </div>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
-          {/* Data Mapping Section */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Mapping</h3>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="loop-var" className="text-xs">Loop Variable</Label>
-                <Input 
-                  id="loop-var" 
-                  defaultValue="invoice.items" 
-                  className="h-8 text-sm font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="item-alias" className="text-xs">Item Alias</Label>
-                <Input 
-                  id="item-alias" 
-                  defaultValue="item" 
-                  className="h-8 text-sm font-mono"
-                />
-              </div>
-            </div>
-          </section>
+          {!selectedBlock && (
+            <section className="rounded-md border border-dashed border-border p-3">
+              <p className="text-xs text-muted-foreground">
+                Select a block on the canvas to enable block-specific controls.
+              </p>
+            </section>
+          )}
 
-          {/* Theme Color Section */}
+          {selectedDynamicTable && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Mapping</h3>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="loop-var" className="text-xs">Loop Variable</Label>
+                  <Input
+                    id="loop-var"
+                    value={selectedDynamicTable.props.repeaterKey}
+                    onChange={(event) =>
+                      updateDynamicTableProps(selectedDynamicTable.id, { repeaterKey: event.target.value })
+                    }
+                    className="h-8 text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="item-alias" className="text-xs">Item Alias</Label>
+                  <Input
+                    id="item-alias"
+                    value={selectedDynamicTable.props.itemAlias}
+                    onChange={(event) =>
+                      updateDynamicTableProps(selectedDynamicTable.id, { itemAlias: event.target.value })
+                    }
+                    className="h-8 text-sm font-mono"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Palette className="w-3.5 h-3.5 text-muted-foreground" />
@@ -71,12 +101,14 @@ export function RightSidebar() {
             <div className="flex gap-2">
               {themeColors.map((color) => (
                 <button
+                  type="button"
                   key={color.name}
                   className="relative w-8 h-8 rounded-full transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   style={{ backgroundColor: color.color }}
                   title={color.name}
+                  onClick={() => setDocumentSettings({ primaryColor: color.color })}
                 >
-                  {color.name === "Slate" && (
+                  {documentSettings.primaryColor === color.color && (
                     <div className="absolute inset-0 rounded-full ring-2 ring-foreground ring-offset-2 ring-offset-card" />
                   )}
                 </button>
@@ -84,104 +116,81 @@ export function RightSidebar() {
             </div>
           </section>
 
-          {/* Typography Section */}
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Typography</h3>
+            <div className="flex items-center gap-2">
+              <Type className="w-3.5 h-3.5 text-muted-foreground" />
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Typography</h3>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="font-family" className="text-xs">Font Family</Label>
-              <Select defaultValue="inter">
+              <Select
+                value={documentSettings.fontFamily}
+                onValueChange={(value) => setDocumentSettings({ fontFamily: value })}
+              >
                 <SelectTrigger id="font-family" className="h-8 text-sm w-full">
                   <SelectValue placeholder="Select font" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="inter">Inter</SelectItem>
-                  <SelectItem value="roboto">Roboto</SelectItem>
-                  <SelectItem value="open-sans">Open Sans</SelectItem>
-                  <SelectItem value="lato">Lato</SelectItem>
-                  <SelectItem value="poppins">Poppins</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="header-size" className="text-xs">Header Size</Label>
-              <Select defaultValue="sm">
-                <SelectTrigger id="header-size" className="h-8 text-sm w-full">
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="xs">Extra Small</SelectItem>
-                  <SelectItem value="sm">Small</SelectItem>
-                  <SelectItem value="md">Medium</SelectItem>
-                  <SelectItem value="lg">Large</SelectItem>
+                  <SelectItem value="Inter, sans-serif">Inter</SelectItem>
+                  <SelectItem value="Roboto, sans-serif">Roboto</SelectItem>
+                  <SelectItem value="'Open Sans', sans-serif">Open Sans</SelectItem>
+                  <SelectItem value="Lato, sans-serif">Lato</SelectItem>
+                  <SelectItem value="Poppins, sans-serif">Poppins</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </section>
 
-          {/* Anchoring Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Anchor className="w-3.5 h-3.5 text-muted-foreground" />
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Anchoring</h3>
-            </div>
-            <RadioGroup defaultValue="block" className="gap-2">
-              <div className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/50 transition-colors cursor-pointer">
-                <RadioGroupItem value="page" id="anchor-page" className="mt-0.5" />
-                <div className="flex-1">
-                  <Label htmlFor="anchor-page" className="text-sm font-medium cursor-pointer">
-                    Anchor to Page
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Element stays fixed relative to page edges
-                  </p>
-                </div>
+          {selectedDynamicTable && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Table Columns</h3>
+              <div className="space-y-3">
+                {selectedDynamicTable.props.columns.map((column, index) => (
+                  <div key={column.key} className="space-y-2 rounded-md border border-border p-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Column Label</Label>
+                      <Input
+                        value={column.label}
+                        onChange={(event) => {
+                          const nextColumns = [...selectedDynamicTable.props.columns]
+                          nextColumns[index] = { ...nextColumns[index], label: event.target.value }
+                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
+                        }}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Alignment</Label>
+                      <Select
+                        value={column.align}
+                        onValueChange={(value: "left" | "center" | "right") => {
+                          const nextColumns = [...selectedDynamicTable.props.columns]
+                          nextColumns[index] = { ...nextColumns[index], align: value }
+                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-sm w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Left</SelectItem>
+                          <SelectItem value="center">Center</SelectItem>
+                          <SelectItem value="right">Right</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-start gap-3 p-3 rounded-md border border-primary/50 bg-primary/5 cursor-pointer">
-                <RadioGroupItem value="block" id="anchor-block" className="mt-0.5" />
-                <div className="flex-1">
-                  <Label htmlFor="anchor-block" className="text-sm font-medium cursor-pointer">
-                    Anchor to Block
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Element flows with document content
-                  </p>
-                </div>
-              </div>
-            </RadioGroup>
-          </section>
+            </section>
+          )}
 
-          {/* Table Options Section */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Table Options</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="border-style" className="text-xs">Border Style</Label>
-                <Select defaultValue="solid">
-                  <SelectTrigger id="border-style" className="h-8 text-sm w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="solid">Solid</SelectItem>
-                    <SelectItem value="dashed">Dashed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="row-striping" className="text-xs">Row Striping</Label>
-                <Select defaultValue="odd">
-                  <SelectTrigger id="row-striping" className="h-8 text-sm w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="odd">Odd Rows</SelectItem>
-                    <SelectItem value="even">Even Rows</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <section className="rounded-md border border-dashed border-border p-3">
+            <p className="text-xs text-muted-foreground">
+              Floating element anchoring controls will be enabled in the next phase.
+            </p>
           </section>
+          <div className="h-1" />
         </div>
       </ScrollArea>
     </aside>
