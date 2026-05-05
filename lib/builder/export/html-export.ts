@@ -91,11 +91,11 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
 }
 
 const renderFloatingElementHtml = (element: FloatingElement) => {
-  const style = `position:absolute;left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;z-index:${element.zIndex};`
+  const style = `position:absolute;left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;z-index:${element.zIndex};transform:rotate(${element.rotation ?? 0}deg);transform-origin:center center;`
 
   if (element.type === "image") {
     if (element.src) {
-      return `<div style="${style}"><img src="${escapeHtml(element.src)}" alt="${escapeHtml(element.content || "image")}" style="width:100%;height:100%;object-fit:contain;" /></div>`
+      return `<div style="${style}"><img src="${escapeHtml(element.src)}" alt="${escapeHtml(element.content || "image")}" style="width:100%;height:100%;object-fit:${element.fit || "contain"};" /></div>`
     }
     return `<div style="${style}border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b;">${escapeHtml(
       element.content || "Upload logo"
@@ -109,7 +109,7 @@ const renderFloatingElementHtml = (element: FloatingElement) => {
   }
 
   if (element.type === "stamp") {
-    return `<div style="${style}display:flex;align-items:center;justify-content:center;"><div style="width:100%;height:100%;border-radius:9999px;border:4px solid #10b981;display:flex;align-items:center;justify-content:center;transform:rotate(-15deg);background:rgba(255,255,255,.8);font-weight:700;color:#10b981;">${escapeHtml(
+    return `<div style="${style}display:flex;align-items:center;justify-content:center;"><div style="width:100%;height:100%;border-radius:9999px;border:4px solid #10b981;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.8);font-weight:700;color:#10b981;">${escapeHtml(
       element.content || "PAID"
     )}</div></div>`
   }

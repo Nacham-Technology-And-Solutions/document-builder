@@ -28,6 +28,10 @@ export interface HeaderBannerBlock extends BaseFlowBlock {
     companyNameToken: string
     invoiceNumberToken: string
     dateToken: string
+    backgroundColor: string
+    textColor: string
+    mutedTextColor: string
+    headingFontSize: number
   }
 }
 
@@ -38,6 +42,8 @@ export interface InvoiceMetaGridBlock extends BaseFlowBlock {
     payToLabel: string
     leftLines: string[]
     rightLines: string[]
+    labelColor: string
+    textColor: string
   }
 }
 
@@ -51,6 +57,11 @@ export interface DynamicTableBlock extends BaseFlowBlock {
       label: string
       align: "left" | "center" | "right"
     }>
+    headerBackgroundColor: string
+    headerTextColor: string
+    rowTextColor: string
+    borderColor: string
+    fontSize: number
   }
 }
 
@@ -61,6 +72,9 @@ export interface TotalsBlock extends BaseFlowBlock {
     subtotalToken: string
     taxToken: string
     totalToken: string
+    labelColor: string
+    valueColor: string
+    accentColor: string
   }
 }
 
@@ -69,6 +83,8 @@ export interface FooterBlock extends BaseFlowBlock {
   props: {
     heading: string
     lines: string[]
+    headingColor: string
+    textColor: string
   }
 }
 
@@ -95,6 +111,9 @@ export interface FloatingElement {
   zIndex: number
   content?: string
   src?: string
+  fit?: "contain" | "cover"
+  locked?: boolean
+  rotation?: number
 }
 
 export interface BuilderSelection {
@@ -107,6 +126,7 @@ export interface BuilderState {
   flowBlocks: FlowBlock[]
   floatingElements: FloatingElement[]
   selection: BuilderSelection
+  snapToGrid: boolean
 }
 
 export interface PersistedTemplate {

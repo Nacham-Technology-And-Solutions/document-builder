@@ -12,6 +12,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useBuilderStore } from "@/lib/builder/store"
 import type { DynamicTableBlock, FloatingElement } from "@/lib/builder/types"
 
@@ -29,14 +31,23 @@ export function RightSidebar() {
   const selection = useBuilderStore((state) => state.selection)
   const documentSettings = useBuilderStore((state) => state.documentSettings)
   const setDocumentSettings = useBuilderStore((state) => state.setDocumentSettings)
+  const snapToGrid = useBuilderStore((state) => state.snapToGrid)
+  const setSnapToGrid = useBuilderStore((state) => state.setSnapToGrid)
+  const updateFlowBlock = useBuilderStore((state) => state.updateFlowBlock)
   const updateDynamicTableProps = useBuilderStore((state) => state.updateDynamicTableProps)
   const updateFloatingElement = useBuilderStore((state) => state.updateFloatingElement)
+  const selectFlowBlock = useBuilderStore((state) => state.selectFlowBlock)
+  const removeFlowBlock = useBuilderStore((state) => state.removeFlowBlock)
+  const moveFlowBlockById = useBuilderStore((state) => state.moveFlowBlockById)
   const selectFloatingElement = useBuilderStore((state) => state.selectFloatingElement)
   const removeFloatingElement = useBuilderStore((state) => state.removeFloatingElement)
   const bringFloatingForward = useBuilderStore((state) => state.bringFloatingForward)
   const sendFloatingBackward = useBuilderStore((state) => state.sendFloatingBackward)
   const bringFloatingToFront = useBuilderStore((state) => state.bringFloatingToFront)
   const sendFloatingToBack = useBuilderStore((state) => state.sendFloatingToBack)
+  const alignFloatingElement = useBuilderStore((state) => state.alignFloatingElement)
+  const undo = useBuilderStore((state) => state.undo)
+  const redo = useBuilderStore((state) => state.redo)
 
   const selectedBlock = flowBlocks.find(
     (block) => selection.kind === "flow" && selection.id === block.id
@@ -50,6 +61,11 @@ export function RightSidebar() {
     () => [...floatingElements].sort((a, b) => b.zIndex - a.zIndex),
     [floatingElements]
   )
+
+  const updateSelectedFlow = (updater: (block: any) => any) => {
+    if (!selectedBlock) return
+    updateFlowBlock(selectedBlock.id, (block) => updater(block))
+  }
 
   return (
     <aside className="w-[320px] border-l border-border bg-card flex flex-col min-h-0">
@@ -67,17 +83,26 @@ export function RightSidebar() {
                 ? `Editing ${selectedBlock.type}`
                 : selectedFloating
                   ? `Editing ${selectedFloating.type}`
-                  : "Select a block to edit"}
+                  : "Select an element to edit"}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <Tabs defaultValue="inspector" className="flex-1 flex flex-col min-h-0">
+        <div className="px-4 pt-3">
+          <TabsList className="w-full">
+            <TabsTrigger value="inspector" className="flex-1">Inspector</TabsTrigger>
+            <TabsTrigger value="theme" className="flex-1">Theme & Layers</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="inspector" className="flex-1 min-h-0 mt-0">
+          <div className="h-full overflow-y-auto p-4 space-y-6">
           {!selectedBlock && !selectedFloating && (
             <section className="rounded-md border border-dashed border-border p-3">
               <p className="text-xs text-muted-foreground">
-                Select a block on the canvas to enable block-specific controls.
+                Select a flow block or floating element on the canvas to unlock editor controls.
               </p>
             </section>
           )}
@@ -106,6 +131,199 @@ export function RightSidebar() {
                       updateDynamicTableProps(selectedDynamicTable.id, { itemAlias: event.target.value })
                     }
                     className="h-8 text-sm font-mono"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {selectedDynamicTable && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Table Columns</h3>
+              <div className="space-y-3">
+                {selectedDynamicTable.props.columns.map((column, index) => (
+                  <div key={column.key} className="space-y-2 rounded-md border border-border p-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Column Label</Label>
+                      <Input
+                        value={column.label}
+                        onChange={(event) => {
+                          const nextColumns = [...selectedDynamicTable.props.columns]
+                          nextColumns[index] = { ...nextColumns[index], label: event.target.value }
+                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
+                        }}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Alignment</Label>
+                      <Select
+                        value={column.align}
+                        onValueChange={(value: "left" | "center" | "right") => {
+                          const nextColumns = [...selectedDynamicTable.props.columns]
+                          nextColumns[index] = { ...nextColumns[index], align: value }
+                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-sm w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Left</SelectItem>
+                          <SelectItem value="center">Center</SelectItem>
+                          <SelectItem value="right">Right</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {selectedBlock?.type === "header-banner" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Header Style & Content</h3>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heading Text</Label>
+                <Input
+                  value={selectedBlock.props.heading}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...block.props, heading: event.target.value },
+                    }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Background</Label>
+                  <Input
+                    value={selectedBlock.props.backgroundColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, backgroundColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Title Color</Label>
+                  <Input
+                    value={selectedBlock.props.textColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, textColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {selectedBlock?.type === "invoice-meta-grid" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meta Grid Style</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Label Color</Label>
+                  <Input
+                    value={selectedBlock.props.labelColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, labelColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Text Color</Label>
+                  <Input
+                    value={selectedBlock.props.textColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, textColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {selectedBlock?.type === "totals-block" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Totals Style</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Label Color</Label>
+                  <Input
+                    value={selectedBlock.props.labelColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, labelColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Value Color</Label>
+                  <Input
+                    value={selectedBlock.props.valueColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, valueColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {selectedBlock?.type === "footer-block" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Footer Style</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Heading Color</Label>
+                  <Input
+                    value={selectedBlock.props.headingColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, headingColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Text Color</Label>
+                  <Input
+                    value={selectedBlock.props.textColor}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...block.props, textColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 text-sm"
                   />
                 </div>
               </div>
@@ -214,6 +432,40 @@ export function RightSidebar() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Rotation (deg)</Label>
+                  <Input
+                    type="number"
+                    value={selectedFloating.rotation ?? 0}
+                    onChange={(event) =>
+                      updateFloatingElement(selectedFloating.id, { rotation: Number(event.target.value || 0) })
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Lock Element</Label>
+                  <label className="h-8 rounded-md border border-border px-2 flex items-center justify-between text-xs">
+                    <span>{selectedFloating.locked ? "Locked" : "Unlocked"}</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <input
+                            type="checkbox"
+                            checked={!!selectedFloating.locked}
+                            onChange={(event) =>
+                              updateFloatingElement(selectedFloating.id, { locked: event.target.checked })
+                            }
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>Lock prevents move, resize, and keyboard nudging.</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </label>
+                </div>
+              </div>
+
               {(selectedFloating.type === "text" || selectedFloating.type === "image" || selectedFloating.type === "stamp") && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Content</Label>
@@ -225,7 +477,7 @@ export function RightSidebar() {
                 </div>
               )}
               {selectedFloating.type === "image" && (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label className="text-xs">Upload Image / Logo</Label>
                   <Input
                     type="file"
@@ -244,8 +496,33 @@ export function RightSidebar() {
                       reader.readAsDataURL(file)
                     }}
                   />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Image Fit</Label>
+                    <Select
+                      value={selectedFloating.fit || "contain"}
+                      onValueChange={(value: "contain" | "cover") =>
+                        updateFloatingElement(selectedFloating.id, { fit: value })
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-sm w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contain">Contain</SelectItem>
+                        <SelectItem value="cover">Cover</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
+              <div className="grid grid-cols-3 gap-2">
+                <Button title="Align to page left edge" size="sm" variant="outline" onClick={() => alignFloatingElement(selectedFloating.id, "left")}>Left</Button>
+                <Button title="Align to page center" size="sm" variant="outline" onClick={() => alignFloatingElement(selectedFloating.id, "center")}>Center</Button>
+                <Button title="Align to page right edge" size="sm" variant="outline" onClick={() => alignFloatingElement(selectedFloating.id, "right")}>Right</Button>
+                <Button title="Align to page top edge" size="sm" variant="outline" onClick={() => alignFloatingElement(selectedFloating.id, "top")}>Top</Button>
+                <Button title="Align to vertical middle" size="sm" variant="outline" onClick={() => alignFloatingElement(selectedFloating.id, "middle")}>Middle</Button>
+                <Button title="Align to page bottom edge" size="sm" variant="outline" onClick={() => alignFloatingElement(selectedFloating.id, "bottom")}>Bottom</Button>
+              </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => sendFloatingToBack(selectedFloating.id)}>To Back</Button>
                 <Button size="sm" variant="outline" onClick={() => sendFloatingBackward(selectedFloating.id)}>Back</Button>
@@ -264,7 +541,30 @@ export function RightSidebar() {
           )}
 
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Layers</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Block Layers</h3>
+            <div className="space-y-1.5">
+              {flowBlocks.map((block, index) => (
+                <div
+                  key={block.id}
+                  className={`w-full rounded-md border px-2 py-1.5 text-xs ${
+                    selectedBlock?.id === block.id ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <button type="button" className="w-full text-left font-medium" onClick={() => selectFlowBlock(block.id)}>
+                    {block.type}
+                  </button>
+                  <div className="mt-1 flex gap-1">
+                    <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => moveFlowBlockById(block.id, "up")} disabled={index === 0}>Up</Button>
+                    <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => moveFlowBlockById(block.id, "down")} disabled={index === flowBlocks.length - 1}>Down</Button>
+                    <Button size="sm" variant="destructive" className="h-6 px-2 text-[10px]" onClick={() => removeFlowBlock(block.id)}>Remove</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Floating Layers</h3>
             <div className="space-y-1.5">
               {sortedFloatingLayers.length === 0 && (
                 <p className="text-xs text-muted-foreground">No floating elements yet.</p>
@@ -284,7 +584,12 @@ export function RightSidebar() {
               ))}
             </div>
           </section>
+          <div className="h-2" />
+          </div>
+        </TabsContent>
 
+        <TabsContent value="theme" className="flex-1 min-h-0 mt-0">
+          <div className="h-full overflow-y-auto p-4 space-y-6">
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Palette className="w-3.5 h-3.5 text-muted-foreground" />
@@ -332,52 +637,37 @@ export function RightSidebar() {
               </Select>
             </div>
           </section>
+          <section className="space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Canvas Controls</h3>
+            <label className="flex items-center justify-between rounded-md border border-border p-2">
+              <span className="text-sm">Snap To Grid</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <input
+                      type="checkbox"
+                      checked={snapToGrid}
+                      onChange={(event) => setSnapToGrid(event.target.checked)}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>Snap drag and resize operations to an 8px grid.</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </label>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={undo}>Undo</Button>
+              <Button size="sm" variant="outline" onClick={redo}>Redo</Button>
+            </div>
+          </section>
 
-          {selectedDynamicTable && (
-            <section className="space-y-3">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Table Columns</h3>
-              <div className="space-y-3">
-                {selectedDynamicTable.props.columns.map((column, index) => (
-                  <div key={column.key} className="space-y-2 rounded-md border border-border p-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Column Label</Label>
-                      <Input
-                        value={column.label}
-                        onChange={(event) => {
-                          const nextColumns = [...selectedDynamicTable.props.columns]
-                          nextColumns[index] = { ...nextColumns[index], label: event.target.value }
-                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
-                        }}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Alignment</Label>
-                      <Select
-                        value={column.align}
-                        onValueChange={(value: "left" | "center" | "right") => {
-                          const nextColumns = [...selectedDynamicTable.props.columns]
-                          nextColumns[index] = { ...nextColumns[index], align: value }
-                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
-                        }}
-                      >
-                        <SelectTrigger className="h-8 text-sm w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="left">Left</SelectItem>
-                          <SelectItem value="center">Center</SelectItem>
-                          <SelectItem value="right">Right</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">All Layers</h3>
+            <p className="text-xs text-muted-foreground">Blocks: {flowBlocks.length} | Floating: {floatingElements.length}</p>
+          </section>
           <div className="h-2" />
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </aside>
   )
 }

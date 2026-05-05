@@ -112,10 +112,10 @@ export function LeftSidebar() {
   const addFloatingElement = useBuilderStore((state) => state.addFloatingElement)
 
   return (
-    <aside className="w-[300px] border-r border-border bg-card flex flex-col">
+    <aside className="w-[300px] border-r border-border bg-card flex flex-col min-h-0">
       <div className="p-4 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground">Toolbox</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Drag elements to the canvas</p>
+        <h2 className="text-sm font-semibold tracking-tight text-foreground">Toolbox</h2>
+        <p className="text-xs text-muted-foreground mt-1">Add blocks or floating elements to the canvas.</p>
       </div>
       <Tabs defaultValue="flow" className="flex-1 flex flex-col">
         <div className="px-4 pt-3">

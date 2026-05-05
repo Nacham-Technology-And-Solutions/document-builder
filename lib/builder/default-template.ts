@@ -19,6 +19,10 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           companyNameToken: "{{ company.name }}",
           invoiceNumberToken: "{{ invoice.number }}",
           dateToken: "{{ invoice.date }}",
+          backgroundColor: "#334155",
+          textColor: "#ffffff",
+          mutedTextColor: "#cbd5e1",
+          headingFontSize: 28,
         },
       }
     case "invoice-meta-grid":
@@ -30,6 +34,8 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           payToLabel: "Pay To",
           leftLines: ["{{ client.name }}", "{{ client.address }}", "{{ client.email }}"],
           rightLines: ["{{ company.name }}", "{{ company.address }}", "{{ company.bank }}"],
+          labelColor: "#64748b",
+          textColor: "#334155",
         },
       }
     case "dynamic-table":
@@ -45,6 +51,11 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
             { key: "rate", label: "Rate", align: "right" },
             { key: "amount", label: "Amount", align: "right" },
           ],
+          headerBackgroundColor: "#f1f5f9",
+          headerTextColor: "#64748b",
+          rowTextColor: "#334155",
+          borderColor: "#e5e7eb",
+          fontSize: 14,
         },
       }
     case "totals-block":
@@ -56,6 +67,9 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           subtotalToken: "{{ invoice.subtotal }}",
           taxToken: "{{ invoice.tax }}",
           totalToken: "{{ invoice.total }}",
+          labelColor: "#64748b",
+          valueColor: "#334155",
+          accentColor: "#e2e8f0",
         },
       }
     case "footer-block":
@@ -65,6 +79,8 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
         props: {
           heading: "Notes",
           lines: ["{{ invoice.notes }}"],
+          headingColor: "#334155",
+          textColor: "#64748b",
         },
       }
   }
@@ -83,6 +99,9 @@ export const createDefaultFloatingElement = (type: FloatingElementType): Floatin
         height: 56,
         zIndex: 20,
         content: "Logo",
+        fit: "contain",
+        locked: false,
+        rotation: 0,
       }
     case "text":
       return {
@@ -95,6 +114,8 @@ export const createDefaultFloatingElement = (type: FloatingElementType): Floatin
         height: 24,
         zIndex: 30,
         content: "{{ company.phone }} | {{ company.email }}",
+        locked: false,
+        rotation: 0,
       }
     case "pattern":
       return {
@@ -106,6 +127,8 @@ export const createDefaultFloatingElement = (type: FloatingElementType): Floatin
         width: 240,
         height: 160,
         zIndex: 0,
+        locked: false,
+        rotation: 0,
       }
     case "stamp":
       return {
@@ -118,6 +141,8 @@ export const createDefaultFloatingElement = (type: FloatingElementType): Floatin
         height: 88,
         zIndex: 25,
         content: "PAID",
+        locked: false,
+        rotation: -15,
       }
   }
 }
@@ -142,5 +167,6 @@ export const initialBuilderState: BuilderState = {
     kind: "flow",
     id: null,
   },
+  snapToGrid: true,
 }
 

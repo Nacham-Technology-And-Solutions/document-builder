@@ -23,6 +23,7 @@ export function Navbar() {
       flowBlocks: state.flowBlocks,
       floatingElements: state.floatingElements,
       selection: state.selection,
+      snapToGrid: state.snapToGrid,
     }
     const payload = JSON.stringify(serializeTemplate(builderState), null, 2)
     downloadTextFile(payload, `${safeTitle}.json`, "application/json")
@@ -35,6 +36,7 @@ export function Navbar() {
       flowBlocks: state.flowBlocks,
       floatingElements: state.floatingElements,
       selection: state.selection,
+      snapToGrid: state.snapToGrid,
     }
     const html = generateHtmlExport(builderState)
     downloadTextFile(html, `${safeTitle}.html`, "text/html")
@@ -47,6 +49,7 @@ export function Navbar() {
       flowBlocks: state.flowBlocks,
       floatingElements: state.floatingElements,
       selection: state.selection,
+      snapToGrid: state.snapToGrid,
     }
     const blade = generateBladeExport(builderState)
     downloadTextFile(blade, `${safeTitle}.blade.php`, "text/plain")
