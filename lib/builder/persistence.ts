@@ -1,5 +1,6 @@
 import { initialBuilderState } from "@/lib/builder/default-template"
 import type { BuilderState, PersistedTemplate } from "@/lib/builder/types"
+import { normalizeTotalsFlowBlock } from "@/lib/builder/totals-block-utils"
 
 const CURRENT_SCHEMA_VERSION = 1 as const
 
@@ -75,6 +76,7 @@ export const parseTemplate = (jsonString: string): PersistedTemplate => {
         kind: null,
         id: null,
       },
+      flowBlocks: migrated.builderState.flowBlocks.map((block) => normalizeTotalsFlowBlock(block)),
     },
   }
 }

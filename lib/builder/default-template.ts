@@ -1,3 +1,4 @@
+import { createDefaultTotalsRows } from "@/lib/builder/totals-block-utils"
 import type { BuilderState, FloatingElement, FloatingElementType, FlowBlock, FlowBlockType } from "@/lib/builder/types"
 
 const buildId = () => {
@@ -16,13 +17,25 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
         type: "header-banner",
         props: {
           heading: "INVOICE",
-          companyNameToken: "{{ company.name }}",
+          leftLines: ["{{ company.name }}"],
+          invoiceNumberLabel: "Invoice #",
           invoiceNumberToken: "{{ invoice.number }}",
+          datePrefix: "",
           dateToken: "{{ invoice.date }}",
           backgroundColor: "#334155",
           textColor: "#ffffff",
           mutedTextColor: "#cbd5e1",
           headingFontSize: 28,
+          headingFontWeight: 700,
+          subtitleFontSize: 14,
+          rightColumnFontSize: 14,
+          paddingX: 24,
+          paddingY: 24,
+          columnGap: 12,
+          swapColumns: false,
+          bannerJustify: "between",
+          leftTextAlign: "left",
+          rightTextAlign: "right",
         },
       }
     case "invoice-meta-grid":
@@ -63,10 +76,7 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
         id: buildId(),
         type: "totals-block",
         props: {
-          taxLabel: "Tax (10%)",
-          subtotalToken: "{{ invoice.subtotal }}",
-          taxToken: "{{ invoice.tax }}",
-          totalToken: "{{ invoice.total }}",
+          rows: createDefaultTotalsRows(),
           labelColor: "#64748b",
           valueColor: "#334155",
           accentColor: "#e2e8f0",

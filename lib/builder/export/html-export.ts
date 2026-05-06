@@ -1,3 +1,13 @@
+import {
+  resolveBannerJustify,
+  resolveHeaderBannerLeftLines,
+  resolveHeaderBannerRightLines,
+  resolveHeadingWeight,
+  resolveRightColumnFontSize,
+  resolveSubtitleFontSize,
+} from "@/lib/builder/header-banner-utils"
+import { inlineRichTextToSafeHtml } from "@/lib/builder/inline-rich-text"
+import { getTotalsRows } from "@/lib/builder/totals-block-utils"
 import type { BuilderState, FloatingElement, FlowBlock } from "@/lib/builder/types"
 import { buildLoopEndMarker, buildLoopStartMarker } from "@/lib/builder/export/token-utils"
 
@@ -15,33 +25,65 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
 
-const renderFlowBlockHtml = (block: FlowBlock) => {
+const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
   switch (block.type) {
-    case "header-banner":
+    case "header-banner": {
+      const p = block.props
+      const leftLines = resolveHeaderBannerLeftLines(p)
+      const rightLines = resolveHeaderBannerRightLines(p)
+      const centered = resolveBannerJustify(p) === "center"
+      const justifyCss = centered ? "center" : "space-between"
+      const dirCss = p.swapColumns ? "row-reverse" : "row"
+      const gap = typeof p.columnGap === "number" ? p.columnGap : 12
+      const px = typeof p.paddingX === "number" ? p.paddingX : 24
+      const py = typeof p.paddingY === "number" ? p.paddingY : 24
+      const subFs = resolveSubtitleFontSize(p, baseFontSize)
+      const rightFs = resolveRightColumnFontSize(p, baseFontSize)
+      const wHeading = resolveHeadingWeight(p)
+      const leftAlign = p.leftTextAlign ?? "left"
+      const rightAlign = p.rightTextAlign ?? "right"
+      const innerPad = `padding:${py}px ${px}px`
+      const flexChildren = centered ? "max-width:50%;" : "flex:1 1 0;min-width:0;"
+
+      const leftHtml = `
+    <div style="${flexChildren}text-align:${leftAlign};box-sizing:border-box;">
+      <h1 style="margin:0;font-size:${p.headingFontSize}px;font-weight:${wHeading};color:${escapeHtml(p.textColor)};">${escapeHtml(p.heading)}</h1>
+      ${leftLines
+        .map(
+          (line, idx) =>
+            `<p style="margin:${idx === 0 ? "6px" : "4px"} 0 0;font-size:${subFs}px;color:${escapeHtml(p.mutedTextColor)};">${inlineRichTextToSafeHtml(line)}</p>`
+        )
+        .join("")}
+    </div>`
+      const rightHtml = `
+    <div style="${flexChildren}text-align:${rightAlign};box-sizing:border-box;">
+      ${rightLines
+        .map(
+          (line, idx) =>
+            `<p style="margin:${idx === 0 ? "0" : "4px"} 0 0;font-size:${rightFs}px;color:${escapeHtml(p.mutedTextColor)};">${inlineRichTextToSafeHtml(line)}</p>`
+        )
+        .join("")}
+    </div>`
+
       return `
-<section class="block card banner" style="background:${escapeHtml(block.props.backgroundColor)};border-color:${escapeHtml(block.props.backgroundColor)};color:${escapeHtml(block.props.textColor)};">
-  <div class="banner-content">
-    <div>
-      <h1 style="font-size:${block.props.headingFontSize}px;color:${escapeHtml(block.props.textColor)};">${escapeHtml(block.props.heading)}</h1>
-      <p style="color:${escapeHtml(block.props.mutedTextColor)};">${escapeHtml(block.props.companyNameToken)}</p>
-    </div>
-    <div class="right">
-      <p style="color:${escapeHtml(block.props.mutedTextColor)};">Invoice # ${escapeHtml(block.props.invoiceNumberToken)}</p>
-      <p style="color:${escapeHtml(block.props.mutedTextColor)};">${escapeHtml(block.props.dateToken)}</p>
-    </div>
+<section class="block card banner" style="background:${escapeHtml(p.backgroundColor)};border-color:${escapeHtml(p.backgroundColor)};color:${escapeHtml(p.textColor)};">
+  <div class="banner-content" style="${innerPad};display:flex;flex-direction:${dirCss};align-items:center;justify-content:${justifyCss};gap:${gap}px;box-sizing:border-box;">
+    ${leftHtml}
+    ${rightHtml}
   </div>
 </section>`
+    }
     case "invoice-meta-grid":
       return `
 <section class="block card">
   <div class="grid-2">
     <div>
       <p class="label" style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.billToLabel)}</p>
-      ${block.props.leftLines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${escapeHtml(line)}</p>`).join("")}
+      ${block.props.leftLines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${inlineRichTextToSafeHtml(line)}</p>`).join("")}
     </div>
     <div>
       <p class="label" style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.payToLabel)}</p>
-      ${block.props.rightLines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${escapeHtml(line)}</p>`).join("")}
+      ${block.props.rightLines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${inlineRichTextToSafeHtml(line)}</p>`).join("")}
     </div>
   </div>
 </section>`
@@ -72,20 +114,27 @@ const renderFlowBlockHtml = (block: FlowBlock) => {
     </tbody>
   </table>
 </section>`
-    case "totals-block":
+    case "totals-block": {
+      const rows = getTotalsRows(block.props)
+      const rowsHtml = rows
+        .map((row) => {
+          const isGrand = row.variant === "grand-total"
+          const cls = isGrand ? "line total" : "line"
+          const borderStyle = isGrand ? ` style="border-color:${escapeHtml(block.props.accentColor)};"` : ""
+          return `<div class="${cls}"${borderStyle}><span style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(row.label)}</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(row.value)}</span></div>`
+        })
+        .join("")
       return `
 <section class="block totals-wrap">
-  <div class="card totals">
-    <div class="line"><span style="color:${escapeHtml(block.props.labelColor)};">Subtotal</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(block.props.subtotalToken)}</span></div>
-    <div class="line"><span style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.taxLabel)}</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(block.props.taxToken)}</span></div>
-    <div class="line total" style="border-color:${escapeHtml(block.props.accentColor)};"><span style="color:${escapeHtml(block.props.valueColor)};">Total</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(block.props.totalToken)}</span></div>
+  <div class="card totals">${rowsHtml}
   </div>
 </section>`
+    }
     case "footer-block":
       return `
 <section class="block card">
   <p class="footer-title" style="color:${escapeHtml(block.props.headingColor)};">${escapeHtml(block.props.heading)}</p>
-  ${block.props.lines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${escapeHtml(line)}</p>`).join("")}
+  ${block.props.lines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${inlineRichTextToSafeHtml(line)}</p>`).join("")}
 </section>`
     case "custom-html":
       return `
@@ -151,7 +200,8 @@ th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
 `
 
 export const generateHtmlExport = (state: BuilderState) => {
-  const blocksHtml = state.flowBlocks.map(renderFlowBlockHtml).join("\n")
+  const baseFs = state.documentSettings.baseFontSize
+  const blocksHtml = state.flowBlocks.map((block) => renderFlowBlockHtml(block, baseFs)).join("\n")
   const floatingHtml = state.floatingElements
     .slice()
     .sort((a, b) => a.zIndex - b.zIndex)

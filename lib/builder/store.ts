@@ -26,6 +26,8 @@ interface BuilderActions {
   selectFloatingElement: (id: string | null) => void
   clearSelection: () => void
   loadFromTemplate: (state: BuilderState) => void
+  /** Replaces canvas state and clears undo/redo (e.g. new preset or imported file). */
+  replaceBuilderState: (state: BuilderState) => void
   setSnapToGrid: (enabled: boolean) => void
   undo: () => void
   redo: () => void
@@ -249,6 +251,16 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
         snapToGrid: state.snapToGrid ?? true,
       })
     ),
+  replaceBuilderState: (state) =>
+    set({
+      documentSettings: state.documentSettings,
+      flowBlocks: state.flowBlocks,
+      floatingElements: state.floatingElements,
+      selection: { kind: null, id: null },
+      snapToGrid: state.snapToGrid ?? true,
+      past: [],
+      future: [],
+    }),
   setSnapToGrid: (enabled) => set((state) => withHistory(state, { snapToGrid: enabled })),
   undo: () =>
     set((state) => {

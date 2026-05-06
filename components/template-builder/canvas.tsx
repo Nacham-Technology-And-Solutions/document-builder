@@ -13,6 +13,16 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useBuilderStore } from "@/lib/builder/store"
+import {
+  resolveBannerJustify,
+  resolveHeaderBannerLeftLines,
+  resolveHeaderBannerRightLines,
+  resolveHeadingWeight,
+  resolveRightColumnFontSize,
+  resolveSubtitleFontSize,
+} from "@/lib/builder/header-banner-utils"
+import { inlineRichTextToSafeHtml } from "@/lib/builder/inline-rich-text"
+import { getTotalsRows } from "@/lib/builder/totals-block-utils"
 import type { FloatingElement, FlowBlock } from "@/lib/builder/types"
 
 interface SelectedBlockProps {
@@ -39,6 +49,17 @@ const alignClassName: Record<string, string> = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const snap = (value: number) => Math.round(value / GRID) * GRID
+
+/** Skip canvas shortcuts while the user edits form fields so Backspace does not delete the selection. */
+function eventTargetIsEditableField(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false
+  const el = target
+  const tag = el.tagName
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true
+  if (el.isContentEditable) return true
+  if (el.closest("[contenteditable='true']")) return true
+  return false
+}
 
 function SortableFlowBlock({ children, label, isSelected, onClick, id }: SelectedBlockProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
@@ -72,34 +93,84 @@ function SortableFlowBlock({ children, label, isSelected, onClick, id }: Selecte
   )
 }
 
-function renderFlowBlock(block: FlowBlock, primaryColor: string) {
+function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: number) {
   switch (block.type) {
-    case "header-banner":
+    case "header-banner": {
+      const p = block.props
+      const leftLines = resolveHeaderBannerLeftLines(p)
+      const rightLines = resolveHeaderBannerRightLines(p)
+      const centered = resolveBannerJustify(p) === "center"
+      const justify = centered ? "center" : "space-between"
+      const gap = typeof p.columnGap === "number" ? p.columnGap : 12
+      const px = typeof p.paddingX === "number" ? p.paddingX : 24
+      const py = typeof p.paddingY === "number" ? p.paddingY : 24
+      const subtitlePx = resolveSubtitleFontSize(p, baseFontSize)
+      const rightPx = resolveRightColumnFontSize(p, baseFontSize)
+      const leftAlign = p.leftTextAlign ?? "left"
+      const rightAlign = p.rightTextAlign ?? "right"
+      const wHeading = resolveHeadingWeight(p)
+
       return (
-        <div className="rounded-md p-6" style={{ backgroundColor: block.props.backgroundColor || primaryColor }}>
-          <div className="flex items-center justify-between">
-            <div>
+        <div
+          className="rounded-md box-border min-w-0"
+          style={{
+            backgroundColor: p.backgroundColor || primaryColor,
+            paddingLeft: px,
+            paddingRight: px,
+            paddingTop: py,
+            paddingBottom: py,
+          }}
+        >
+          <div
+            className="flex items-center min-w-0 box-border"
+            style={{
+              flexDirection: p.swapColumns ? "row-reverse" : "row",
+              justifyContent: justify,
+              gap,
+            }}
+          >
+            <div className={centered ? "min-w-0 max-w-[50%]" : "min-w-0 flex-1"} style={{ textAlign: leftAlign }}>
               <h1
-                className="font-bold"
-                style={{ color: block.props.textColor, fontSize: `${block.props.headingFontSize}px` }}
+                className="m-0"
+                style={{
+                  color: p.textColor,
+                  fontSize: `${p.headingFontSize}px`,
+                  fontWeight: wHeading,
+                }}
               >
-                {block.props.heading}
+                {p.heading}
               </h1>
-              <p className="text-sm mt-1" style={{ color: block.props.mutedTextColor }}>
-                {block.props.companyNameToken}
-              </p>
+              {leftLines.map((line, idx) => (
+                <p
+                  key={`hl-${idx}`}
+                  style={{
+                    color: p.mutedTextColor,
+                    fontSize: `${subtitlePx}px`,
+                    marginTop: idx === 0 ? 6 : 4,
+                    marginBottom: 0,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: inlineRichTextToSafeHtml(line) }}
+                />
+              ))}
             </div>
-            <div className="text-right">
-              <p className="text-sm" style={{ color: block.props.mutedTextColor }}>
-                Invoice # {block.props.invoiceNumberToken}
-              </p>
-              <p className="text-sm" style={{ color: block.props.mutedTextColor }}>
-                {block.props.dateToken}
-              </p>
+            <div className={centered ? "min-w-0 max-w-[50%]" : "min-w-0 flex-1"} style={{ textAlign: rightAlign }}>
+              {rightLines.map((line, idx) => (
+                <p
+                  key={`hr-${idx}`}
+                  style={{
+                    color: p.mutedTextColor,
+                    fontSize: `${rightPx}px`,
+                    marginTop: idx === 0 ? 0 : 4,
+                    marginBottom: 0,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: inlineRichTextToSafeHtml(line) }}
+                />
+              ))}
             </div>
           </div>
         </div>
       )
+    }
     case "invoice-meta-grid":
       return (
         <div className="grid grid-cols-2 gap-6 p-4 border border-border rounded-md">
@@ -107,16 +178,26 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string) {
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: block.props.labelColor }}>
               {block.props.billToLabel}
             </p>
-            {block.props.leftLines.map((line) => (
-              <p key={line} className="text-sm" style={{ color: block.props.textColor }}>{line}</p>
+            {block.props.leftLines.map((line, idx) => (
+              <p
+                key={`meta-l-${idx}`}
+                className="text-sm"
+                style={{ color: block.props.textColor }}
+                dangerouslySetInnerHTML={{ __html: inlineRichTextToSafeHtml(line) }}
+              />
             ))}
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: block.props.labelColor }}>
               {block.props.payToLabel}
             </p>
-            {block.props.rightLines.map((line) => (
-              <p key={line} className="text-sm" style={{ color: block.props.textColor }}>{line}</p>
+            {block.props.rightLines.map((line, idx) => (
+              <p
+                key={`meta-r-${idx}`}
+                className="text-sm"
+                style={{ color: block.props.textColor }}
+                dangerouslySetInnerHTML={{ __html: inlineRichTextToSafeHtml(line) }}
+              />
             ))}
           </div>
         </div>
@@ -162,35 +243,42 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string) {
           <div dangerouslySetInnerHTML={{ __html: block.props.html }} />
         </div>
       )
-    case "totals-block":
+    case "totals-block": {
+      const rows = getTotalsRows(block.props)
       return (
         <div className="flex justify-end">
           <div className="w-64 space-y-2 p-4 border border-border rounded-md">
-            <div className="flex justify-between text-sm">
-              <span style={{ color: block.props.labelColor }}>Subtotal</span>
-              <span style={{ color: block.props.valueColor }}>{block.props.subtotalToken}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span style={{ color: block.props.labelColor }}>{block.props.taxLabel}</span>
-              <span style={{ color: block.props.valueColor }}>{block.props.taxToken}</span>
-            </div>
-            <div className="pt-2 mt-2" style={{ borderTop: `1px solid ${block.props.accentColor}` }}>
-              <div className="flex justify-between text-base font-semibold">
-                <span style={{ color: block.props.valueColor }}>Total</span>
-                <span style={{ color: block.props.valueColor }}>{block.props.totalToken}</span>
-              </div>
-            </div>
+            {rows.map((row) => {
+              const isGrand = row.variant === "grand-total"
+              const rowCls = isGrand ? "flex justify-between text-base font-semibold pt-2 mt-2 border-t" : "flex justify-between text-sm"
+              return (
+                <div
+                  key={row.id}
+                  className={rowCls}
+                  style={isGrand ? { borderTopColor: block.props.accentColor } : undefined}
+                >
+                  <span style={{ color: block.props.labelColor }}>{row.label}</span>
+                  <span style={{ color: block.props.valueColor }}>{row.value}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )
+    }
     case "footer-block":
       return (
         <div className="border border-border rounded-md p-4">
           <p className="text-sm font-medium mb-2" style={{ color: block.props.headingColor }}>
             {block.props.heading}
           </p>
-          {block.props.lines.map((line) => (
-            <p key={line} className="text-sm" style={{ color: block.props.textColor }}>{line}</p>
+          {block.props.lines.map((line, idx) => (
+            <p
+              key={`foot-${idx}`}
+              className="text-sm"
+              style={{ color: block.props.textColor }}
+              dangerouslySetInnerHTML={{ __html: inlineRichTextToSafeHtml(line) }}
+            />
           ))}
         </div>
       )
@@ -296,8 +384,10 @@ export function Canvas() {
 
   useEffect(() => {
     const onGlobalKeyDown = (event: KeyboardEvent) => {
+      const typing = eventTargetIsEditableField(event.target)
       const ctrlOrMeta = event.ctrlKey || event.metaKey
       if (ctrlOrMeta && event.key.toLowerCase() === "z") {
+        if (typing) return
         event.preventDefault()
         if (event.shiftKey) redo()
         else undo()
@@ -305,6 +395,7 @@ export function Canvas() {
       }
 
       if (event.key === "Delete" || event.key === "Backspace") {
+        if (typing) return
         if (selection.kind === "floating" && selection.id) {
           event.preventDefault()
           removeFloatingElement(selection.id)
@@ -327,6 +418,7 @@ export function Canvas() {
     if (!target) return
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (eventTargetIsEditableField(event.target)) return
       if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return
       if (target.locked) return
       event.preventDefault()
@@ -458,7 +550,7 @@ export function Canvas() {
                       isSelected={selection.kind === "flow" && selection.id === block.id}
                       onClick={() => selectFlowBlock(block.id)}
                     >
-                      {renderFlowBlock(block, documentSettings.primaryColor)}
+                      {renderFlowBlock(block, documentSettings.primaryColor, documentSettings.baseFontSize)}
                       {blockFloating.map((element) => (
                         <FloatingNode
                           key={element.id}

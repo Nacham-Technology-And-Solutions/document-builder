@@ -26,13 +26,35 @@ export interface HeaderBannerBlock extends BaseFlowBlock {
   type: "header-banner"
   props: {
     heading: string
-    companyNameToken: string
+    /** Lines under the title — tokens or static text */
+    leftLines?: string[]
+    /** @deprecated — use `leftLines`; still honored when leftLines omitted (older templates) */
+    companyNameToken?: string
+    /** Printed before invoice number token, e.g. "Invoice #" or "Ref:" */
+    invoiceNumberLabel?: string
     invoiceNumberToken: string
+    /** Optional prefix before date token on its own row, e.g. "Date: " */
+    datePrefix?: string
     dateToken: string
+    /** When non-empty, each line renders as a `<p>` and replaces invoice/date pairing */
+    rightLines?: string[]
     backgroundColor: string
     textColor: string
     mutedTextColor: string
     headingFontSize: number
+    /** CSS font-weight (100–900), default bold */
+    headingFontWeight?: number
+    subtitleFontSize?: number
+    rightColumnFontSize?: number
+    paddingX?: number
+    paddingY?: number
+    columnGap?: number
+    /** Visual swap of primary vs secondary column */
+    swapColumns?: boolean
+    /** Row flex alignment */
+    bannerJustify?: "between" | "center"
+    leftTextAlign?: "left" | "center" | "right"
+    rightTextAlign?: "left" | "center" | "right"
   }
 }
 
@@ -66,13 +88,20 @@ export interface DynamicTableBlock extends BaseFlowBlock {
   }
 }
 
+export type TotalsRowVariant = "line" | "grand-total"
+
+export interface TotalsRow {
+  id: string
+  label: string
+  value: string
+  /** Grand total style: top border + bold (any row can use it, any order). */
+  variant: TotalsRowVariant
+}
+
 export interface TotalsBlock extends BaseFlowBlock {
   type: "totals-block"
   props: {
-    taxLabel: string
-    subtotalToken: string
-    taxToken: string
-    totalToken: string
+    rows: TotalsRow[]
     labelColor: string
     valueColor: string
     accentColor: string

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Table, Palette, Type } from "lucide-react"
+import { ChevronDown, ChevronUp, Plus, Table, Palette, Trash2, Type } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,8 +14,12 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { createTotalsRowId } from "@/lib/builder/totals-block-utils"
 import { useBuilderStore } from "@/lib/builder/store"
 import type { DynamicTableBlock, FloatingElement, FlowBlock } from "@/lib/builder/types"
+
+const INLINE_STYLING_HINT =
+  "Inline styling: **bold** and *italic*. Mustache tokens like {{ client.name }} stay as-is."
 
 const themeColors = [
   { name: "Slate", color: "#334155" },
@@ -248,7 +252,7 @@ export function RightSidebar() {
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Header Style & Content</h3>
               <div className="space-y-1.5">
-                <Label className="text-xs">Heading Text</Label>
+                <Label className="text-xs">Heading</Label>
                 <Input
                   value={selectedBlock.props.heading}
                   onChange={(event) =>
@@ -261,30 +265,121 @@ export function RightSidebar() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Company Token</Label>
-                <Input
-                  value={selectedBlock.props.companyNameToken}
-                  onChange={(event) =>
+                <Label className="text-xs">Left column lines (one per line)</Label>
+                <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
+                <textarea
+                  value={
+                    (selectedBlock.props.leftLines?.length
+                      ? selectedBlock.props.leftLines
+                      : selectedBlock.props.companyNameToken
+                        ? [selectedBlock.props.companyNameToken]
+                        : []
+                    ).join("\n")
+                  }
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    const lines = raw.trim() === "" ? [] : raw.split("\n")
                     updateSelectedFlow((block) => ({
                       ...block,
-                      props: { ...(block as typeof selectedBlock).props, companyNameToken: event.target.value },
+                      props: {
+                        ...(block as typeof selectedBlock).props,
+                        leftLines: lines,
+                        companyNameToken: undefined,
+                      },
                     }))
-                  }
-                  className="h-8 text-sm font-mono"
+                  }}
+                  className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
+                  placeholder="{{ company.name }}"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Invoice Number Token</Label>
-                <Input
-                  value={selectedBlock.props.invoiceNumberToken}
-                  onChange={(event) =>
-                    updateSelectedFlow((block) => ({
-                      ...block,
-                      props: { ...(block as typeof selectedBlock).props, invoiceNumberToken: event.target.value },
-                    }))
-                  }
-                  className="h-8 text-sm font-mono"
-                />
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <Label className="text-xs font-semibold">Right column</Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Use the fields below, or override with custom lines (tokens or static text per line).
+                </p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Custom right lines (optional override)</Label>
+                  <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
+                  <textarea
+                    value={(selectedBlock.props.rightLines ?? []).join("\n")}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          rightLines: raw.trim() === "" ? undefined : raw.split("\n"),
+                        },
+                      }))
+                    }}
+                    className="w-full min-h-16 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
+                    placeholder="Leave empty → use invoice # + date fields"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Invoice label</Label>
+                    <Input
+                      value={selectedBlock.props.invoiceNumberLabel ?? "Invoice #"}
+                      onChange={(event) =>
+                        updateSelectedFlow((block) => ({
+                          ...block,
+                          props: {
+                            ...(block as typeof selectedBlock).props,
+                            invoiceNumberLabel: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 text-sm"
+                      placeholder="Invoice #"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Number token</Label>
+                    <Input
+                      value={selectedBlock.props.invoiceNumberToken}
+                      onChange={(event) =>
+                        updateSelectedFlow((block) => ({
+                          ...block,
+                          props: {
+                            ...(block as typeof selectedBlock).props,
+                            invoiceNumberToken: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Date prefix</Label>
+                    <Input
+                      value={selectedBlock.props.datePrefix ?? ""}
+                      onChange={(event) =>
+                        updateSelectedFlow((block) => ({
+                          ...block,
+                          props: { ...(block as typeof selectedBlock).props, datePrefix: event.target.value },
+                        }))
+                      }
+                      className="h-8 text-sm"
+                      placeholder='e.g. "Date: "'
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Date token</Label>
+                    <Input
+                      value={selectedBlock.props.dateToken}
+                      onChange={(event) =>
+                        updateSelectedFlow((block) => ({
+                          ...block,
+                          props: { ...(block as typeof selectedBlock).props, dateToken: event.target.value },
+                        }))
+                      }
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <ColorField
@@ -308,30 +403,221 @@ export function RightSidebar() {
                   }
                 />
               </div>
+              <ColorField
+                label="Muted / secondary text"
+                value={selectedBlock.props.mutedTextColor}
+                onChange={(next) =>
+                  updateSelectedFlow((block) => ({
+                    ...block,
+                    props: { ...(block as typeof selectedBlock).props, mutedTextColor: next },
+                  }))
+                }
+              />
               <div className="grid grid-cols-2 gap-2">
-                <ColorField
-                  label="Muted Text"
-                  value={selectedBlock.props.mutedTextColor}
-                  onChange={(next) =>
-                    updateSelectedFlow((block) => ({
-                      ...block,
-                      props: { ...(block as typeof selectedBlock).props, mutedTextColor: next },
-                    }))
-                  }
-                />
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Heading Size</Label>
+                  <Label className="text-xs">Heading size (px)</Label>
                   <Input
                     type="number"
                     value={selectedBlock.props.headingFontSize}
                     onChange={(event) =>
                       updateSelectedFlow((block) => ({
                         ...block,
-                        props: { ...(block as typeof selectedBlock).props, headingFontSize: Number(event.target.value || 0) },
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          headingFontSize: Number(event.target.value || 0),
+                        },
                       }))
                     }
                     className="h-8 text-sm"
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Heading weight</Label>
+                  <Input
+                    type="number"
+                    min={100}
+                    max={900}
+                    step={100}
+                    value={selectedBlock.props.headingFontWeight ?? 700}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          headingFontWeight: Number(event.target.value || 700),
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Left subtitle size (px)</Label>
+                  <Input
+                    type="number"
+                    value={selectedBlock.props.subtitleFontSize ?? documentSettings.baseFontSize - 1}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          subtitleFontSize: Number(event.target.value || 0),
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Right column size (px)</Label>
+                  <Input
+                    type="number"
+                    value={selectedBlock.props.rightColumnFontSize ?? documentSettings.baseFontSize - 1}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          rightColumnFontSize: Number(event.target.value || 0),
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Padding X / Y (px)</Label>
+                  <div className="flex gap-1">
+                    <Input
+                      type="number"
+                      value={selectedBlock.props.paddingX ?? 24}
+                      onChange={(event) =>
+                        updateSelectedFlow((block) => ({
+                          ...block,
+                          props: { ...(block as typeof selectedBlock).props, paddingX: Number(event.target.value || 0) },
+                        }))
+                      }
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      type="number"
+                      value={selectedBlock.props.paddingY ?? 24}
+                      onChange={(event) =>
+                        updateSelectedFlow((block) => ({
+                          ...block,
+                          props: { ...(block as typeof selectedBlock).props, paddingY: Number(event.target.value || 0) },
+                        }))
+                      }
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Column gap (px)</Label>
+                  <Input
+                    type="number"
+                    value={selectedBlock.props.columnGap ?? 12}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          columnGap: Number(event.target.value || 0),
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Row layout</Label>
+                  <Select
+                    value={selectedBlock.props.bannerJustify ?? "between"}
+                    onValueChange={(value: "between" | "center") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, bannerJustify: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="between">Space between</SelectItem>
+                      <SelectItem value="center">Centered</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Swap columns</Label>
+                  <Select
+                    value={selectedBlock.props.swapColumns ? "yes" : "no"}
+                    onValueChange={(value: "yes" | "no") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, swapColumns: value === "yes" },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">Heading left</SelectItem>
+                      <SelectItem value="yes">Heading right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Left text align</Label>
+                  <Select
+                    value={selectedBlock.props.leftTextAlign ?? "left"}
+                    onValueChange={(value: "left" | "center" | "right") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, leftTextAlign: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Right text align</Label>
+                  <Select
+                    value={selectedBlock.props.rightTextAlign ?? "right"}
+                    onValueChange={(value: "left" | "center" | "right") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, rightTextAlign: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </section>
@@ -392,6 +678,7 @@ export function RightSidebar() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Left Lines (one per line)</Label>
+                <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
                 <textarea
                   value={selectedBlock.props.leftLines.join("\n")}
                   onChange={(event) =>
@@ -408,6 +695,7 @@ export function RightSidebar() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Right Lines (one per line)</Label>
+                <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
                 <textarea
                   value={selectedBlock.props.rightLines.join("\n")}
                   onChange={(event) =>
@@ -427,20 +715,11 @@ export function RightSidebar() {
 
           {selectedBlock?.type === "totals-block" && (
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Totals Style</h3>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tax Label</Label>
-                <Input
-                  value={selectedBlock.props.taxLabel}
-                  onChange={(event) =>
-                    updateSelectedFlow((block) => ({
-                      ...block,
-                      props: { ...(block as typeof selectedBlock).props, taxLabel: event.target.value },
-                    }))
-                  }
-                  className="h-8 text-sm"
-                />
-              </div>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Totals</h3>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                All lines are one list—reorder freely. Use <span className="font-medium">Grand total</span> for the accent
+                rule and bold styling (often the last row).
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <ColorField
                   label="Label Color"
@@ -464,7 +743,7 @@ export function RightSidebar() {
                 />
               </div>
               <ColorField
-                label="Accent Color"
+                label="Accent (grand total border)"
                 value={selectedBlock.props.accentColor}
                 onChange={(next) =>
                   updateSelectedFlow((block) => ({
@@ -473,46 +752,163 @@ export function RightSidebar() {
                   }))
                 }
               />
-              <div className="grid grid-cols-1 gap-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Subtotal Token</Label>
-                  <Input
-                    value={selectedBlock.props.subtotalToken}
-                    onChange={(event) =>
-                      updateSelectedFlow((block) => ({
+              <div className="flex items-center justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 px-2"
+                  onClick={() =>
+                    updateSelectedFlow((block) => {
+                      if (block.type !== "totals-block") return block
+                      return {
                         ...block,
-                        props: { ...(block as typeof selectedBlock).props, subtotalToken: event.target.value },
-                      }))
-                    }
-                    className="h-8 text-sm font-mono"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Tax Token</Label>
-                  <Input
-                    value={selectedBlock.props.taxToken}
-                    onChange={(event) =>
-                      updateSelectedFlow((block) => ({
-                        ...block,
-                        props: { ...(block as typeof selectedBlock).props, taxToken: event.target.value },
-                      }))
-                    }
-                    className="h-8 text-sm font-mono"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Total Token</Label>
-                  <Input
-                    value={selectedBlock.props.totalToken}
-                    onChange={(event) =>
-                      updateSelectedFlow((block) => ({
-                        ...block,
-                        props: { ...(block as typeof selectedBlock).props, totalToken: event.target.value },
-                      }))
-                    }
-                    className="h-8 text-sm font-mono"
-                  />
-                </div>
+                        props: {
+                          ...block.props,
+                          rows: [
+                            ...block.props.rows,
+                            {
+                              id: createTotalsRowId(),
+                              label: "Line",
+                              value: "{{ invoice.amount }}",
+                              variant: "line",
+                            },
+                          ],
+                        },
+                      }
+                    })
+                  }
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Row
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {selectedBlock.props.rows.map((row, index) => (
+                  <div key={row.id} className="space-y-2 rounded-md border border-border p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-medium uppercase text-muted-foreground">Row {index + 1}</span>
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          disabled={index === 0}
+                          onClick={() =>
+                            updateSelectedFlow((block) => {
+                              if (block.type !== "totals-block") return block
+                              const prev = [...block.props.rows]
+                              if (index <= 0) return block
+                              ;[prev[index - 1], prev[index]] = [prev[index], prev[index - 1]]
+                              return { ...block, props: { ...block.props, rows: prev } }
+                            })
+                          }
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                          <span className="sr-only">Move up</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          disabled={index >= selectedBlock.props.rows.length - 1}
+                          onClick={() =>
+                            updateSelectedFlow((block) => {
+                              if (block.type !== "totals-block") return block
+                              const prev = [...block.props.rows]
+                              if (index < 0 || index >= prev.length - 1) return block
+                              ;[prev[index], prev[index + 1]] = [prev[index + 1], prev[index]]
+                              return { ...block, props: { ...block.props, rows: prev } }
+                            })
+                          }
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                          <span className="sr-only">Move down</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          disabled={selectedBlock.props.rows.length <= 1}
+                          onClick={() =>
+                            updateSelectedFlow((block) => {
+                              if (block.type !== "totals-block") return block
+                              if (block.props.rows.length <= 1) return block
+                              return {
+                                ...block,
+                                props: {
+                                  ...block.props,
+                                  rows: block.props.rows.filter((r) => r.id !== row.id),
+                                },
+                              }
+                            })
+                          }
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="sr-only">Remove row</span>
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Style</Label>
+                      <Select
+                        value={row.variant}
+                        onValueChange={(value: "line" | "grand-total") =>
+                          updateSelectedFlow((block) => {
+                            if (block.type !== "totals-block") return block
+                            const prev = block.props.rows.map((r) =>
+                              r.id === row.id ? { ...r, variant: value } : r
+                            )
+                            return { ...block, props: { ...block.props, rows: prev } }
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-sm w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="line">Regular</SelectItem>
+                          <SelectItem value="grand-total">Grand total</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Label</Label>
+                      <Input
+                        value={row.label}
+                        onChange={(event) =>
+                          updateSelectedFlow((block) => {
+                            if (block.type !== "totals-block") return block
+                            const prev = block.props.rows.map((r) =>
+                              r.id === row.id ? { ...r, label: event.target.value } : r
+                            )
+                            return { ...block, props: { ...block.props, rows: prev } }
+                          })
+                        }
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Value / token</Label>
+                      <Input
+                        value={row.value}
+                        onChange={(event) =>
+                          updateSelectedFlow((block) => {
+                            if (block.type !== "totals-block") return block
+                            const prev = block.props.rows.map((r) =>
+                              r.id === row.id ? { ...r, value: event.target.value } : r
+                            )
+                            return { ...block, props: { ...block.props, rows: prev } }
+                          })
+                        }
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           )}
@@ -557,6 +953,7 @@ export function RightSidebar() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Lines (one per line)</Label>
+                <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
                 <textarea
                   value={selectedBlock.props.lines.join("\n")}
                   onChange={(event) =>
