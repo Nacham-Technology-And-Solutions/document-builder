@@ -8,8 +8,11 @@ import {
 } from "@/lib/builder/header-banner-utils"
 import { layoutStripCardStyleRules, layoutStripOuterHtmlAttrs } from "@/lib/builder/flow-section-layout"
 import { inlineRichTextToSafeHtml, multilineMarkdownToParagraphInnerHtml } from "@/lib/builder/inline-rich-text"
-import { flowBlockCardRadiusPx, resolveFlowBlockCornerStyle } from "@/lib/builder/flow-block-corners"
-import { resolveFlowBlockSpacingPx } from "@/lib/builder/flow-block-spacing"
+import { flowBlockCardRadiusPx } from "@/lib/builder/flow-block-corners"
+import {
+  resolveFlowBlockCornersForBlock,
+  resolveFlowBlockSpacingAfterPx,
+} from "@/lib/builder/flow-block-layout-resolve"
 import { floatingTextChromeForExport } from "@/lib/builder/floating-text-utils"
 import { resolveHeadingBoxMinHeightPx } from "@/lib/builder/heading-block-utils"
 import { getTotalsRows } from "@/lib/builder/totals-block-utils"
@@ -30,7 +33,14 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
 
-const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
+/** Per-render shell: margins are per `.block`; radius is inlined on `.card` (or banner section). */
+type FlowBlockHtmlShell = {
+  marginBottomPx: number
+  cornerRadiusPx: number
+}
+
+const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: FlowBlockHtmlShell) => {
+  const { marginBottomPx, cornerRadiusPx } = shell
   switch (block.type) {
     case "header-banner": {
       const p = block.props
@@ -71,7 +81,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
     </div>`
 
       return `
-<section class="block card banner" style="background:${escapeHtml(p.backgroundColor)};border-color:${escapeHtml(p.backgroundColor)};color:${escapeHtml(p.textColor)};">
+<section class="block card banner" style="background:${escapeHtml(p.backgroundColor)};border-color:${escapeHtml(p.backgroundColor)};color:${escapeHtml(p.textColor)};margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
   <div class="banner-content" style="${innerPad};display:flex;flex-direction:${dirCss};align-items:center;justify-content:${justifyCss};gap:${gap}px;box-sizing:border-box;">
     ${leftHtml}
     ${rightHtml}
@@ -80,7 +90,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
     }
     case "invoice-meta-grid":
       return `
-<section class="block card">
+<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
   <div class="grid-2">
     <div>
       <p class="label" style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.billToLabel)}</p>
@@ -96,7 +106,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
       const loopStart = buildLoopStartMarker(block.props.repeaterKey, block.props.itemAlias)
       const loopEnd = buildLoopEndMarker()
       return `
-<section class="block card table-wrap" style="border-color:${escapeHtml(block.props.borderColor)};">
+<section class="block card table-wrap" style="border-color:${escapeHtml(block.props.borderColor)};margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
   <table style="font-size:${block.props.fontSize}px;">
     <thead>
       <tr style="background:${escapeHtml(block.props.headerBackgroundColor)};">
@@ -130,8 +140,8 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
         })
         .join("")
       return `
-<section class="block totals-wrap">
-  <div class="card totals">${rowsHtml}
+<section class="block totals-wrap" style="margin-bottom:${marginBottomPx}px;">
+  <div class="card totals" style="border-radius:${cornerRadiusPx}px;">${rowsHtml}
   </div>
 </section>`
     }
@@ -145,8 +155,9 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
       if (boxH !== undefined) {
         rules += `;min-height:${boxH}px;display:flex;flex-direction:column;justify-content:center`
       }
+      rules += `;border-radius:${cornerRadiusPx}px`
       return `
-<section class="block">
+<section class="block" style="margin-bottom:${marginBottomPx}px;">
   <div ${outer}>
     <div class="card" style="${rules}">
       <h2 style="margin:0;font-size:${b.fontSize}px;font-weight:${b.fontWeight};color:${escapeHtml(b.color)};line-height:1.2;">${inlineRichTextToSafeHtml(b.heading)}</h2>
@@ -159,9 +170,10 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
       const paragraphCss = `color:${escapeHtml(b.color)};font-size:${b.fontSize}px;line-height:${b.lineHeight}`
       const innerHtml = multilineMarkdownToParagraphInnerHtml(b.body, paragraphCss)
       const outer = layoutStripOuterHtmlAttrs(b.boxAlign, b.layoutWidth)
-      const cardRules = layoutStripCardStyleRules(b.layoutWidth, b.textAlign)
+      let cardRules = layoutStripCardStyleRules(b.layoutWidth, b.textAlign)
+      cardRules += `;border-radius:${cornerRadiusPx}px`
       return `
-<section class="block">
+<section class="block" style="margin-bottom:${marginBottomPx}px;">
   <div ${outer}>
     <div class="card" style="${cardRules}">
       ${innerHtml}
@@ -171,13 +183,13 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
     }
     case "footer-block":
       return `
-<section class="block card">
+<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
   <p class="footer-title" style="color:${escapeHtml(block.props.headingColor)};">${escapeHtml(block.props.heading)}</p>
   ${block.props.lines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${inlineRichTextToSafeHtml(line)}</p>`).join("")}
 </section>`
     case "custom-html":
       return `
-<section class="block card">
+<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
   <p class="footer-title">${escapeHtml(block.props.label)}</p>
   ${block.props.css ? `<style>${block.props.css}</style>` : ""}
   ${block.props.html}
@@ -215,15 +227,12 @@ const renderFloatingElementHtml = (element: FloatingElement) => {
 }
 
 const baseStyles = (state: BuilderState) => {
-  const flowGap = resolveFlowBlockSpacingPx(state.documentSettings)
-  const cornerR = flowBlockCardRadiusPx(resolveFlowBlockCornerStyle(state.documentSettings))
   return `
 * { box-sizing: border-box; }
 body { margin: 0; background: #f5f5f5; padding: 24px; font-family: ${state.documentSettings.fontFamily}; }
 .document-wrapper { position: relative; overflow: hidden; width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #111827; font-size: ${state.documentSettings.baseFontSize}px; padding: 24px; }
-.block { margin-bottom: ${flowGap}px; }
-.block:last-child { margin-bottom: 0; }
-.card { border: 1px solid #e5e7eb; border-radius: ${cornerR}px; padding: 14px; }
+.block { margin-bottom: 0; }
+.card { border: 1px solid #e5e7eb; padding: 14px; }
 .banner { background: ${state.documentSettings.primaryColor}; border-color: ${state.documentSettings.primaryColor}; color: #fff; }
 .banner-content { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .banner h1 { margin: 0; font-size: 24px; }
@@ -248,7 +257,14 @@ th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
 
 export const generateHtmlExport = (state: BuilderState) => {
   const baseFs = state.documentSettings.baseFontSize
-  const blocksHtml = state.flowBlocks.map((block) => renderFlowBlockHtml(block, baseFs)).join("\n")
+  const blocksHtml = state.flowBlocks
+    .map((block, index) => {
+      const isLast = index === state.flowBlocks.length - 1
+      const marginBottomPx = isLast ? 0 : resolveFlowBlockSpacingAfterPx(block, state.documentSettings)
+      const cornerRadiusPx = flowBlockCardRadiusPx(resolveFlowBlockCornersForBlock(block, state.documentSettings))
+      return renderFlowBlockHtml(block, baseFs, { marginBottomPx, cornerRadiusPx })
+    })
+    .join("\n")
   const floatingHtml = state.floatingElements
     .slice()
     .sort((a, b) => a.zIndex - b.zIndex)

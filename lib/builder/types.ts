@@ -41,6 +41,10 @@ export interface FlowSectionLayoutMixin {
 interface BaseFlowBlock {
   id: string
   type: FlowBlockType
+  /** Space below this block (px); omit → document spacing between blocks */
+  spacingAfterPx?: number
+  /** Omit → document `flowBlockCornerStyle` */
+  cornerStyle?: FlowBlockCornerStyle
 }
 
 export interface HeaderBannerBlock extends BaseFlowBlock {

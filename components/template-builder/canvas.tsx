@@ -21,8 +21,11 @@ import {
   resolveRightColumnFontSize,
   resolveSubtitleFontSize,
 } from "@/lib/builder/header-banner-utils"
-import { flowBlockRadiusTwClass, resolveFlowBlockCornerStyle } from "@/lib/builder/flow-block-corners"
-import { resolveFlowBlockSpacingPx } from "@/lib/builder/flow-block-spacing"
+import { flowBlockRadiusTwClass } from "@/lib/builder/flow-block-corners"
+import {
+  resolveFlowBlockCornersForBlock,
+  resolveFlowBlockSpacingAfterPx,
+} from "@/lib/builder/flow-block-layout-resolve"
 import { floatingTextInnerStyle } from "@/lib/builder/floating-text-utils"
 import { resolveHeadingBoxMinHeightPx } from "@/lib/builder/heading-block-utils"
 import { layoutStripCardProps, layoutStripOuterProps } from "@/lib/builder/flow-section-layout"
@@ -38,8 +41,10 @@ interface SelectedBlockProps {
   isSelected?: boolean
   onClick?: () => void
   id: string
-  /** `rounded-md` or `rounded-none` from theme */
+  /** `rounded-md` or `rounded-none` */
   blockRadiusTw: string
+  /** Space below this block (already 0 when last row) */
+  marginBottomPx: number
 }
 
 type ResizeHandle = "nw" | "ne" | "sw" | "se"
@@ -70,14 +75,26 @@ function eventTargetIsEditableField(target: EventTarget | null): boolean {
   return false
 }
 
-function SortableFlowBlock({ children, label, isSelected, onClick, id, blockRadiusTw }: SelectedBlockProps) {
+function SortableFlowBlock({
+  children,
+  label,
+  isSelected,
+  onClick,
+  id,
+  blockRadiusTw,
+  marginBottomPx,
+}: SelectedBlockProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
   const toolbarTopRounding = blockRadiusTw === "rounded-none" ? "rounded-t-none" : "rounded-t-md"
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        marginBottom: marginBottomPx,
+      }}
       className={cn(
         "relative transition-all",
         blockRadiusTw,
@@ -604,9 +621,6 @@ export function Canvas() {
     .slice()
     .sort((a, b) => a.zIndex - b.zIndex)
 
-  const blockGapPx = resolveFlowBlockSpacingPx(documentSettings)
-  const blockRadiusTw = flowBlockRadiusTwClass(resolveFlowBlockCornerStyle(documentSettings))
-
   return (
     <main className="flex-1 bg-canvas p-8 overflow-auto">
       <div className="min-h-full flex items-start justify-center">
@@ -620,8 +634,11 @@ export function Canvas() {
         >
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={flowBlocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
-              <div className="p-8 flex flex-col" style={{ gap: `${blockGapPx}px` }}>
-                {flowBlocks.map((block) => {
+              <div className="p-8 flex flex-col">
+                {flowBlocks.map((block, index) => {
+                  const isLast = index === flowBlocks.length - 1
+                  const marginBottomPx = isLast ? 0 : resolveFlowBlockSpacingAfterPx(block, documentSettings)
+                  const blockRadiusTw = flowBlockRadiusTwClass(resolveFlowBlockCornersForBlock(block, documentSettings))
                   const blockFloating = floatingElements
                     .filter((item) => item.anchorMode === "block" && item.anchorTargetId === block.id)
                     .slice()
@@ -634,6 +651,7 @@ export function Canvas() {
                       isSelected={selection.kind === "flow" && selection.id === block.id}
                       onClick={() => selectFlowBlock(block.id)}
                       blockRadiusTw={blockRadiusTw}
+                      marginBottomPx={marginBottomPx}
                     >
                       {renderFlowBlock(block, documentSettings.primaryColor, documentSettings.baseFontSize, blockRadiusTw)}
                       {blockFloating.map((element) => (

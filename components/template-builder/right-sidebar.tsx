@@ -133,6 +133,63 @@ export function RightSidebar() {
             </section>
           )}
 
+          {selectedBlock && (
+            <section className="space-y-3 pb-4 border-b border-border">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">This block (overrides)</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Omit values to follow Theme → Flow blocks: {resolveFlowBlockSpacingPx(documentSettings)}px spacing,{" "}
+                {resolveFlowBlockCornerStyle(documentSettings)} corners.
+              </p>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Spacing below this block (px)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={160}
+                  step={1}
+                  placeholder={`Default (${resolveFlowBlockSpacingPx(documentSettings)})`}
+                  value={typeof selectedBlock.spacingAfterPx === "number" ? selectedBlock.spacingAfterPx : ""}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => {
+                      const raw = event.target.value.trim()
+                      if (raw === "") {
+                        return { ...block, spacingAfterPx: undefined }
+                      }
+                      const n = Number(raw)
+                      if (!Number.isFinite(n)) return block
+                      return { ...block, spacingAfterPx: Math.max(0, Math.min(160, Math.round(n))) }
+                    })
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="block-corner-override" className="text-xs">
+                  Corner shape
+                </Label>
+                <Select
+                  value={selectedBlock.cornerStyle ?? "__doc_default__"}
+                  onValueChange={(value) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      cornerStyle:
+                        value === "__doc_default__" ? undefined : (value as FlowBlockCornerStyle),
+                    }))
+                  }
+                >
+                  <SelectTrigger id="block-corner-override" className="h-8 text-sm w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__doc_default__">Use document default</SelectItem>
+                    <SelectItem value="rounded">Rounded</SelectItem>
+                    <SelectItem value="square">Square</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
+          )}
+
           {selectedDynamicTable && (
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Mapping</h3>
@@ -1732,11 +1789,14 @@ export function RightSidebar() {
               <Rows3 className="w-3.5 h-3.5 text-muted-foreground" />
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Flow blocks</h3>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Document-wide defaults on canvas and HTML export; a selected block can override spacing and corners in Inspector (This block overrides).
+            </p>
             <div className="space-y-1.5">
               <Label htmlFor="flow-block-spacing" className="text-xs">
                 Spacing between blocks (px)
               </Label>
-              <p className="text-[11px] text-muted-foreground">Same spacing is used for HTML export. Default {DEFAULT_FLOW_BLOCK_SPACING_PX}px.</p>
+              <p className="text-[11px] text-muted-foreground">Default {DEFAULT_FLOW_BLOCK_SPACING_PX}px when no per-block spacing is set.</p>
               <Input
                 id="flow-block-spacing"
                 type="number"
@@ -1758,7 +1818,7 @@ export function RightSidebar() {
               <Label htmlFor="flow-block-corners" className="text-xs">
                 Block corners
               </Label>
-              <p className="text-[11px] text-muted-foreground">Applies to flow blocks on the canvas and to exported HTML card sections.</p>
+              <p className="text-[11px] text-muted-foreground">Default corner shape unless a block sets its own.</p>
               <Select
                 value={resolveFlowBlockCornerStyle(documentSettings)}
                 onValueChange={(value: FlowBlockCornerStyle) => setDocumentSettings({ flowBlockCornerStyle: value })}
