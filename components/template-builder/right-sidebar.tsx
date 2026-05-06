@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { ChevronDown, ChevronUp, Plus, Table, Palette, Trash2, Type } from "lucide-react"
+import { ChevronDown, ChevronUp, Plus, Rows3, Table, Palette, Trash2, Type } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,9 +14,13 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { flowBlockInspectorLabel } from "@/lib/builder/flow-block-labels"
 import { createTotalsRowId } from "@/lib/builder/totals-block-utils"
+import { resolveFlowBlockCornerStyle } from "@/lib/builder/flow-block-corners"
+import { DEFAULT_FLOW_BLOCK_SPACING_PX, resolveFlowBlockSpacingPx } from "@/lib/builder/flow-block-spacing"
+import { HEADING_BOX_MIN_HEIGHT_PX } from "@/lib/builder/heading-block-utils"
 import { useBuilderStore } from "@/lib/builder/store"
-import type { DynamicTableBlock, FloatingElement, FlowBlock } from "@/lib/builder/types"
+import type { DynamicTableBlock, FloatingElement, FlowBlock, FlowBlockCornerStyle } from "@/lib/builder/types"
 
 const INLINE_STYLING_HINT =
   "Inline styling: **bold** and *italic*. Mustache tokens like {{ client.name }} stay as-is."
@@ -913,6 +917,309 @@ export function RightSidebar() {
             </section>
           )}
 
+          {selectedBlock?.type === "heading-block" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading</h3>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Heading text</Label>
+                <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
+                <Input
+                  value={selectedBlock.props.heading}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, heading: event.target.value },
+                    }))
+                  }
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Width</Label>
+                  <Select
+                    value={selectedBlock.props.layoutWidth}
+                    onValueChange={(value: "full" | "half") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, layoutWidth: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full">Full</SelectItem>
+                      <SelectItem value="half">Half</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Column</Label>
+                  <Select
+                    value={selectedBlock.props.boxAlign}
+                    disabled={selectedBlock.props.layoutWidth === "full"}
+                    onValueChange={(value: "left" | "right") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, boxAlign: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Align text</Label>
+                  <Select
+                    value={selectedBlock.props.textAlign}
+                    onValueChange={(value: "left" | "center" | "right") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, textAlign: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ColorField label="Text color" value={selectedBlock.props.color} onChange={(next) => updateSelectedFlow((block) => ({ ...block, props: { ...(block as typeof selectedBlock).props, color: next } }))} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Font size (px)</Label>
+                  <Input
+                    type="number"
+                    value={selectedBlock.props.fontSize}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, fontSize: Number(event.target.value || 14) },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Background</Label>
+                <p className="text-[11px] text-muted-foreground">Clear for default canvas tint; export stays white unless set.</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={selectedBlock.props.backgroundColor ?? ""}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: {
+                          ...(block as typeof selectedBlock).props,
+                          backgroundColor: event.target.value.trim() || undefined,
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm font-mono"
+                    placeholder="Default"
+                  />
+                  <Input
+                    type="color"
+                    value={
+                      /^#[0-9A-Fa-f]{6}$/.test((selectedBlock.props.backgroundColor ?? "").trim())
+                        ? (selectedBlock.props.backgroundColor ?? "").trim()
+                        : "#e2e8f0"
+                    }
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, backgroundColor: event.target.value },
+                      }))
+                    }
+                    className="h-8 w-12 p-1 shrink-0"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Box min height (px)</Label>
+                <p className="text-[11px] text-muted-foreground">At least {HEADING_BOX_MIN_HEIGHT_PX}px when set; leave empty for auto.</p>
+                <Input
+                  type="number"
+                  min={HEADING_BOX_MIN_HEIGHT_PX}
+                  step={1}
+                  placeholder="Auto"
+                  value={
+                    typeof selectedBlock.props.boxHeightPx === "number" && selectedBlock.props.boxHeightPx > 0
+                      ? Math.max(HEADING_BOX_MIN_HEIGHT_PX, selectedBlock.props.boxHeightPx)
+                      : ""
+                  }
+                  onChange={(event) => {
+                    const raw = event.target.value.trim()
+                    updateSelectedFlow((block) => {
+                      if (block.type !== "heading-block") return block
+                      if (raw === "") {
+                        return { ...block, props: { ...block.props, boxHeightPx: undefined } }
+                      }
+                      const n = Number(raw)
+                      if (!Number.isFinite(n)) {
+                        return { ...block, props: { ...block.props, boxHeightPx: undefined } }
+                      }
+                      const nextH = n > 0 ? Math.max(HEADING_BOX_MIN_HEIGHT_PX, Math.round(n)) : undefined
+                      return { ...block, props: { ...block.props, boxHeightPx: nextH } }
+                    })
+                  }}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Weight</Label>
+                <Input
+                  type="number"
+                  min={100}
+                  max={900}
+                  step={100}
+                  value={selectedBlock.props.fontWeight}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, fontWeight: Number(event.target.value || 600) },
+                    }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+            </section>
+          )}
+
+          {selectedBlock?.type === "text-box" && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Text box</h3>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Body</Label>
+                <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
+                <textarea
+                  value={selectedBlock.props.body}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: { ...(block as typeof selectedBlock).props, body: event.target.value },
+                    }))
+                  }
+                  className="w-full min-h-28 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Width</Label>
+                  <Select
+                    value={selectedBlock.props.layoutWidth}
+                    onValueChange={(value: "full" | "half") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, layoutWidth: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full">Full</SelectItem>
+                      <SelectItem value="half">Half</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Column</Label>
+                  <Select
+                    value={selectedBlock.props.boxAlign}
+                    disabled={selectedBlock.props.layoutWidth === "full"}
+                    onValueChange={(value: "left" | "right") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, boxAlign: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Align text</Label>
+                  <Select
+                    value={selectedBlock.props.textAlign}
+                    onValueChange={(value: "left" | "center" | "right") =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, textAlign: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <ColorField label="Color" value={selectedBlock.props.color} onChange={(next) => updateSelectedFlow((block) => ({ ...block, props: { ...(block as typeof selectedBlock).props, color: next } }))} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Font size (px)</Label>
+                  <Input
+                    type="number"
+                    value={selectedBlock.props.fontSize}
+                    onChange={(event) =>
+                      updateSelectedFlow((block) => ({
+                        ...block,
+                        props: { ...(block as typeof selectedBlock).props, fontSize: Number(event.target.value || 14) },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Line height</Label>
+                <Input
+                  type="number"
+                  step={0.05}
+                  value={selectedBlock.props.lineHeight}
+                  onChange={(event) =>
+                    updateSelectedFlow((block) => ({
+                      ...block,
+                      props: {
+                        ...(block as typeof selectedBlock).props,
+                        lineHeight: Number(event.target.value || 1.4),
+                      },
+                    }))
+                  }
+                  className="h-8 text-sm"
+                />
+              </div>
+            </section>
+          )}
+
           {selectedBlock?.type === "footer-block" && (
             <section className="space-y-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Footer Style</h3>
@@ -1052,7 +1359,7 @@ export function RightSidebar() {
                       <SelectItem value="none">None</SelectItem>
                       {flowBlocks.map((block) => (
                         <SelectItem key={block.id} value={block.id}>
-                          {block.type}
+                          {flowBlockInspectorLabel(block.type)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1149,7 +1456,7 @@ export function RightSidebar() {
                 </div>
               </div>
 
-              {(selectedFloating.type === "text" || selectedFloating.type === "image" || selectedFloating.type === "stamp") && (
+              {(selectedFloating.type === "image" || selectedFloating.type === "stamp") && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Content</Label>
                   <Input
@@ -1158,6 +1465,100 @@ export function RightSidebar() {
                     className="h-8 text-sm"
                   />
                 </div>
+              )}
+              {selectedFloating.type === "text" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Content (multi-line)</Label>
+                    <p className="text-[11px] text-muted-foreground">{INLINE_STYLING_HINT}</p>
+                    <textarea
+                      value={selectedFloating.content || ""}
+                      onChange={(event) => updateFloatingElement(selectedFloating.id, { content: event.target.value })}
+                      className="w-full min-h-28 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Background</Label>
+                    <p className="text-[11px] text-muted-foreground">Clear for default white tint; type transparent for none.</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={selectedFloating.textBackgroundColor ?? ""}
+                        onChange={(event) =>
+                          updateFloatingElement(selectedFloating.id, {
+                            textBackgroundColor: event.target.value.trim() || undefined,
+                          })
+                        }
+                        className="h-8 text-sm font-mono"
+                        placeholder="Default or transparent"
+                      />
+                      <Input
+                        type="color"
+                        value={
+                          /^#[0-9A-Fa-f]{6}$/.test((selectedFloating.textBackgroundColor ?? "").trim())
+                            ? (selectedFloating.textBackgroundColor ?? "").trim()
+                            : "#ffffff"
+                        }
+                        onChange={(event) =>
+                          updateFloatingElement(selectedFloating.id, { textBackgroundColor: event.target.value })
+                        }
+                        className="h-8 w-12 p-1 shrink-0"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Border color</Label>
+                    <p className="text-[11px] text-muted-foreground">Clear for default gray; transparent removes the border.</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={selectedFloating.textBorderColor ?? ""}
+                        onChange={(event) =>
+                          updateFloatingElement(selectedFloating.id, {
+                            textBorderColor: event.target.value.trim() || undefined,
+                          })
+                        }
+                        className="h-8 text-sm font-mono"
+                        placeholder="Default or transparent"
+                      />
+                      <Input
+                        type="color"
+                        value={
+                          /^#[0-9A-Fa-f]{6}$/.test((selectedFloating.textBorderColor ?? "").trim())
+                            ? (selectedFloating.textBorderColor ?? "").trim()
+                            : "#e5e7eb"
+                        }
+                        onChange={(event) =>
+                          updateFloatingElement(selectedFloating.id, { textBorderColor: event.target.value })
+                        }
+                        className="h-8 w-12 p-1 shrink-0"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Border width (px)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="1"
+                      value={
+                        typeof selectedFloating.textBorderWidthPx === "number"
+                          ? selectedFloating.textBorderWidthPx
+                          : ""
+                      }
+                      onChange={(event) => {
+                        const raw = event.target.value.trim()
+                        if (raw === "") {
+                          updateFloatingElement(selectedFloating.id, { textBorderWidthPx: undefined })
+                          return
+                        }
+                        const n = Number(raw)
+                        if (!Number.isFinite(n)) return
+                        updateFloatingElement(selectedFloating.id, { textBorderWidthPx: Math.max(0, Math.round(n)) })
+                      }}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </>
               )}
               {selectedFloating.type === "image" && (
                 <div className="space-y-2">
@@ -1234,7 +1635,7 @@ export function RightSidebar() {
                   }`}
                 >
                   <button type="button" className="w-full text-left font-medium" onClick={() => selectFlowBlock(block.id)}>
-                    {block.type}
+                    {flowBlockInspectorLabel(block.type)}
                   </button>
                   <div className="mt-1 flex gap-1">
                     <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => moveFlowBlockById(block.id, "up")} disabled={index === 0}>Up</Button>
@@ -1325,6 +1726,54 @@ export function RightSidebar() {
               </Select>
             </div>
           </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Rows3 className="w-3.5 h-3.5 text-muted-foreground" />
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Flow blocks</h3>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="flow-block-spacing" className="text-xs">
+                Spacing between blocks (px)
+              </Label>
+              <p className="text-[11px] text-muted-foreground">Same spacing is used for HTML export. Default {DEFAULT_FLOW_BLOCK_SPACING_PX}px.</p>
+              <Input
+                id="flow-block-spacing"
+                type="number"
+                min={0}
+                max={160}
+                step={1}
+                value={resolveFlowBlockSpacingPx(documentSettings)}
+                onChange={(event) => {
+                  const n = Number(event.target.value)
+                  if (!Number.isFinite(n)) return
+                  setDocumentSettings({
+                    flowBlockSpacingPx: Math.max(0, Math.min(160, Math.round(n))),
+                  })
+                }}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="flow-block-corners" className="text-xs">
+                Block corners
+              </Label>
+              <p className="text-[11px] text-muted-foreground">Applies to flow blocks on the canvas and to exported HTML card sections.</p>
+              <Select
+                value={resolveFlowBlockCornerStyle(documentSettings)}
+                onValueChange={(value: FlowBlockCornerStyle) => setDocumentSettings({ flowBlockCornerStyle: value })}
+              >
+                <SelectTrigger id="flow-block-corners" className="h-8 text-sm w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rounded">Rounded</SelectItem>
+                  <SelectItem value="square">Square</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
+
           <section className="space-y-2">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Canvas Controls</h3>
             <label className="flex items-center justify-between rounded-md border border-border p-2">

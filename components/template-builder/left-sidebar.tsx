@@ -1,19 +1,20 @@
 "use client"
 
-import { 
-  LayoutTemplate, 
-  Grid3X3, 
-  Table, 
-  Calculator, 
+import {
+  AlignLeft,
+  Heading2,
+  LayoutTemplate,
+  Grid3X3,
+  Table,
+  Calculator,
   FileText,
   ImageIcon,
   Type,
   Sparkles,
   Stamp,
-  GripVertical
+  GripVertical,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useBuilderStore } from "@/lib/builder/store"
 import type { FloatingElementType, FlowBlockType } from "@/lib/builder/types"
 
@@ -72,6 +73,18 @@ const flowBlocks: BlockItemProps[] = [
     description: "Subtotal, tax, total",
     blockType: "totals-block",
   },
+  {
+    icon: <Heading2 className="w-4 h-4 text-muted-foreground" />,
+    label: "Heading",
+    description: "Title strip, full or half width",
+    blockType: "heading-block",
+  },
+  {
+    icon: <AlignLeft className="w-4 h-4 text-muted-foreground" />,
+    label: "Text box",
+    description: "Body copy, full or half width",
+    blockType: "text-box",
+  },
   { 
     icon: <FileText className="w-4 h-4 text-muted-foreground" />, 
     label: "Footer", 
@@ -96,7 +109,7 @@ const floatingElements: BlockItemProps[] = [
   { 
     icon: <Type className="w-4 h-4 text-muted-foreground" />, 
     label: "Text Box", 
-    description: "Free-form text",
+    description: "Floating multi-line text, bold/italic",
     floatingType: "text",
   },
   { 
@@ -118,20 +131,20 @@ export function LeftSidebar() {
   const addFloatingElement = useBuilderStore((state) => state.addFloatingElement)
 
   return (
-    <aside className="w-[300px] border-r border-border bg-card flex flex-col min-h-0">
-      <div className="p-4 border-b border-border">
+    <aside className="w-[300px] shrink-0 border-r border-border bg-card flex flex-col min-h-0 h-full overflow-hidden">
+      <div className="p-4 border-b border-border shrink-0">
         <h2 className="text-sm font-semibold tracking-tight text-foreground">Toolbox</h2>
         <p className="text-xs text-muted-foreground mt-1">Add blocks or floating elements to the canvas.</p>
       </div>
-      <Tabs defaultValue="flow" className="flex-1 flex flex-col">
-        <div className="px-4 pt-3">
+      <Tabs defaultValue="flow" className="flex flex-1 flex-col min-h-0 overflow-hidden">
+        <div className="px-4 pt-3 shrink-0">
           <TabsList className="w-full">
             <TabsTrigger value="flow" className="flex-1">Flow Blocks</TabsTrigger>
             <TabsTrigger value="floating" className="flex-1">Floating</TabsTrigger>
           </TabsList>
         </div>
-        <ScrollArea className="flex-1 px-4 py-3">
-          <TabsContent value="flow" className="mt-0 space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+          <TabsContent value="flow" className="mt-0 space-y-2 outline-none">
             {flowBlocks.map((block) => (
               <BlockItem
                 key={block.label}
@@ -142,7 +155,7 @@ export function LeftSidebar() {
               />
             ))}
           </TabsContent>
-          <TabsContent value="floating" className="mt-0 space-y-2">
+          <TabsContent value="floating" className="mt-0 space-y-2 outline-none">
             {floatingElements.map((element) => (
               <BlockItem
                 key={element.label}
@@ -153,7 +166,7 @@ export function LeftSidebar() {
               />
             ))}
           </TabsContent>
-        </ScrollArea>
+        </div>
       </Tabs>
     </aside>
   )

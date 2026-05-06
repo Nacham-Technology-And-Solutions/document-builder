@@ -90,3 +90,19 @@ export function inlineRichTextToSafeHtml(input: string): string {
 
   return out
 }
+
+/** Markdown-lite paragraphs (one `<p>` per line). Optional CSS fragment for each `<p>`. */
+export function multilineMarkdownToParagraphInnerHtml(raw: string, paragraphStyleCss = ""): string {
+  if (!raw.trim()) return `<p style="margin:0;${paragraphStyleCss}">&nbsp;</p>`
+  const lines = raw.split("\n")
+  return lines
+    .map((line, idx) => {
+      const isLast = idx === lines.length - 1
+      const marginBottom = isLast ? "0" : "4px"
+      if (!line.trim()) {
+        return `<p style="margin:4px 0 ${marginBottom};min-height:0.5em;${paragraphStyleCss}">&nbsp;</p>`
+      }
+      return `<p style="margin:${idx === 0 ? "0" : "4px"} 0 ${marginBottom};${paragraphStyleCss}">${inlineRichTextToSafeHtml(line)}</p>`
+    })
+    .join("")
+}

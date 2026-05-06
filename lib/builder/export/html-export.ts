@@ -6,7 +6,12 @@ import {
   resolveRightColumnFontSize,
   resolveSubtitleFontSize,
 } from "@/lib/builder/header-banner-utils"
-import { inlineRichTextToSafeHtml } from "@/lib/builder/inline-rich-text"
+import { layoutStripCardStyleRules, layoutStripOuterHtmlAttrs } from "@/lib/builder/flow-section-layout"
+import { inlineRichTextToSafeHtml, multilineMarkdownToParagraphInnerHtml } from "@/lib/builder/inline-rich-text"
+import { flowBlockCardRadiusPx, resolveFlowBlockCornerStyle } from "@/lib/builder/flow-block-corners"
+import { resolveFlowBlockSpacingPx } from "@/lib/builder/flow-block-spacing"
+import { floatingTextChromeForExport } from "@/lib/builder/floating-text-utils"
+import { resolveHeadingBoxMinHeightPx } from "@/lib/builder/heading-block-utils"
 import { getTotalsRows } from "@/lib/builder/totals-block-utils"
 import type { BuilderState, FloatingElement, FlowBlock } from "@/lib/builder/types"
 import { buildLoopEndMarker, buildLoopStartMarker } from "@/lib/builder/export/token-utils"
@@ -130,6 +135,40 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number) => {
   </div>
 </section>`
     }
+    case "heading-block": {
+      const b = block.props
+      const outer = layoutStripOuterHtmlAttrs(b.boxAlign, b.layoutWidth)
+      let rules = layoutStripCardStyleRules(b.layoutWidth, b.textAlign)
+      const bg = b.backgroundColor?.trim()
+      if (bg) rules += `;background-color:${escapeHtml(bg)}`
+      const boxH = resolveHeadingBoxMinHeightPx(b.boxHeightPx)
+      if (boxH !== undefined) {
+        rules += `;min-height:${boxH}px;display:flex;flex-direction:column;justify-content:center`
+      }
+      return `
+<section class="block">
+  <div ${outer}>
+    <div class="card" style="${rules}">
+      <h2 style="margin:0;font-size:${b.fontSize}px;font-weight:${b.fontWeight};color:${escapeHtml(b.color)};line-height:1.2;">${inlineRichTextToSafeHtml(b.heading)}</h2>
+    </div>
+  </div>
+</section>`
+    }
+    case "text-box": {
+      const b = block.props
+      const paragraphCss = `color:${escapeHtml(b.color)};font-size:${b.fontSize}px;line-height:${b.lineHeight}`
+      const innerHtml = multilineMarkdownToParagraphInnerHtml(b.body, paragraphCss)
+      const outer = layoutStripOuterHtmlAttrs(b.boxAlign, b.layoutWidth)
+      const cardRules = layoutStripCardStyleRules(b.layoutWidth, b.textAlign)
+      return `
+<section class="block">
+  <div ${outer}>
+    <div class="card" style="${cardRules}">
+      ${innerHtml}
+    </div>
+  </div>
+</section>`
+    }
     case "footer-block":
       return `
 <section class="block card">
@@ -159,9 +198,11 @@ const renderFloatingElementHtml = (element: FloatingElement) => {
   }
 
   if (element.type === "text") {
-    return `<div style="${style}display:flex;align-items:center;padding:0 8px;border:1px solid #e5e7eb;border-radius:6px;background:rgba(255,255,255,.9);font-size:14px;">${escapeHtml(
-      element.content || ""
-    )}</div>`
+    const inner = multilineMarkdownToParagraphInnerHtml(element.content || "", "font-size:14px;line-height:1.45;color:#334155")
+    const chrome = floatingTextChromeForExport(element)
+    const bgEsc = escapeHtml(chrome.backgroundColor)
+    const borderEsc = escapeHtml(chrome.border)
+    return `<div style="${style}padding:8px;border-radius:6px;background-color:${bgEsc};border:${borderEsc};font-size:14px;overflow:hidden;box-sizing:border-box;">${inner}</div>`
   }
 
   if (element.type === "stamp") {
@@ -173,12 +214,16 @@ const renderFloatingElementHtml = (element: FloatingElement) => {
   return `<div style="${style}border-radius:8px;background:radial-gradient(circle at 1px 1px, rgba(30,41,59,0.22) 1px, transparent 0), linear-gradient(135deg, rgba(51,65,85,0.12), rgba(59,130,246,0.08));background-size:10px 10px, auto;"></div>`
 }
 
-const baseStyles = (state: BuilderState) => `
+const baseStyles = (state: BuilderState) => {
+  const flowGap = resolveFlowBlockSpacingPx(state.documentSettings)
+  const cornerR = flowBlockCardRadiusPx(resolveFlowBlockCornerStyle(state.documentSettings))
+  return `
 * { box-sizing: border-box; }
 body { margin: 0; background: #f5f5f5; padding: 24px; font-family: ${state.documentSettings.fontFamily}; }
 .document-wrapper { position: relative; overflow: hidden; width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #111827; font-size: ${state.documentSettings.baseFontSize}px; padding: 24px; }
-.block { margin-bottom: 16px; }
-.card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; }
+.block { margin-bottom: ${flowGap}px; }
+.block:last-child { margin-bottom: 0; }
+.card { border: 1px solid #e5e7eb; border-radius: ${cornerR}px; padding: 14px; }
 .banner { background: ${state.documentSettings.primaryColor}; border-color: ${state.documentSettings.primaryColor}; color: #fff; }
 .banner-content { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .banner h1 { margin: 0; font-size: 24px; }
@@ -198,6 +243,8 @@ th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
 .footer-title { font-weight: 600; margin: 0 0 8px; }
 @media print { body { padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .document-wrapper { margin: 0; } }
 `
+}
+
 
 export const generateHtmlExport = (state: BuilderState) => {
   const baseFs = state.documentSettings.baseFontSize

@@ -21,8 +21,15 @@ import {
   resolveRightColumnFontSize,
   resolveSubtitleFontSize,
 } from "@/lib/builder/header-banner-utils"
-import { inlineRichTextToSafeHtml } from "@/lib/builder/inline-rich-text"
+import { flowBlockRadiusTwClass, resolveFlowBlockCornerStyle } from "@/lib/builder/flow-block-corners"
+import { resolveFlowBlockSpacingPx } from "@/lib/builder/flow-block-spacing"
+import { floatingTextInnerStyle } from "@/lib/builder/floating-text-utils"
+import { resolveHeadingBoxMinHeightPx } from "@/lib/builder/heading-block-utils"
+import { layoutStripCardProps, layoutStripOuterProps } from "@/lib/builder/flow-section-layout"
+import { cn } from "@/lib/utils"
+import { inlineRichTextToSafeHtml, multilineMarkdownToParagraphInnerHtml } from "@/lib/builder/inline-rich-text"
 import { getTotalsRows } from "@/lib/builder/totals-block-utils"
+import { flowBlockInspectorLabel } from "@/lib/builder/flow-block-labels"
 import type { FloatingElement, FlowBlock } from "@/lib/builder/types"
 
 interface SelectedBlockProps {
@@ -31,6 +38,8 @@ interface SelectedBlockProps {
   isSelected?: boolean
   onClick?: () => void
   id: string
+  /** `rounded-md` or `rounded-none` from theme */
+  blockRadiusTw: string
 }
 
 type ResizeHandle = "nw" | "ne" | "sw" | "se"
@@ -61,14 +70,19 @@ function eventTargetIsEditableField(target: EventTarget | null): boolean {
   return false
 }
 
-function SortableFlowBlock({ children, label, isSelected, onClick, id }: SelectedBlockProps) {
+function SortableFlowBlock({ children, label, isSelected, onClick, id, blockRadiusTw }: SelectedBlockProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+  const toolbarTopRounding = blockRadiusTw === "rounded-none" ? "rounded-t-none" : "rounded-t-md"
 
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`relative rounded-md transition-all ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : "hover:ring-1 hover:ring-border"}`}
+      className={cn(
+        "relative transition-all",
+        blockRadiusTw,
+        isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-card" : "hover:ring-1 hover:ring-border",
+      )}
       onClick={onClick}
     >
       {isSelected && (
@@ -82,7 +96,9 @@ function SortableFlowBlock({ children, label, isSelected, onClick, id }: Selecte
               {...listeners}
             />
           </div>
-          <div className="absolute -top-6 left-0 flex items-center gap-1.5 px-2 py-1 bg-primary rounded-t-md">
+          <div
+            className={cn("absolute -top-6 left-0 flex items-center gap-1.5 px-2 py-1 bg-primary", toolbarTopRounding)}
+          >
             <GripVertical className="w-3 h-3 text-primary-foreground" />
             <span className="text-xs font-medium text-primary-foreground">{label}</span>
           </div>
@@ -93,7 +109,7 @@ function SortableFlowBlock({ children, label, isSelected, onClick, id }: Selecte
   )
 }
 
-function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: number) {
+function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: number, blockRadiusTw: string) {
   switch (block.type) {
     case "header-banner": {
       const p = block.props
@@ -112,7 +128,7 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
 
       return (
         <div
-          className="rounded-md box-border min-w-0"
+          className={cn(blockRadiusTw, "box-border min-w-0")}
           style={{
             backgroundColor: p.backgroundColor || primaryColor,
             paddingLeft: px,
@@ -173,7 +189,7 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
     }
     case "invoice-meta-grid":
       return (
-        <div className="grid grid-cols-2 gap-6 p-4 border border-border rounded-md">
+        <div className={cn("grid grid-cols-2 gap-6 p-4 border border-border", blockRadiusTw)}>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: block.props.labelColor }}>
               {block.props.billToLabel}
@@ -204,7 +220,7 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
       )
     case "dynamic-table":
       return (
-        <div className="rounded-md overflow-hidden" style={{ border: `1px solid ${block.props.borderColor}` }}>
+        <div className={cn(blockRadiusTw, "overflow-hidden")} style={{ border: `1px solid ${block.props.borderColor}` }}>
           <table className="w-full" style={{ fontSize: `${block.props.fontSize}px` }}>
             <thead>
               <tr style={{ backgroundColor: block.props.headerBackgroundColor }}>
@@ -237,7 +253,7 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
       )
     case "custom-html":
       return (
-        <div className="border border-border rounded-md p-4">
+        <div className={cn("border border-border p-4", blockRadiusTw)}>
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{block.props.label}</p>
           {block.props.css ? <style>{block.props.css}</style> : null}
           <div dangerouslySetInnerHTML={{ __html: block.props.html }} />
@@ -247,7 +263,7 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
       const rows = getTotalsRows(block.props)
       return (
         <div className="flex justify-end">
-          <div className="w-64 space-y-2 p-4 border border-border rounded-md">
+          <div className={cn("w-64 space-y-2 p-4 border border-border", blockRadiusTw)}>
             {rows.map((row) => {
               const isGrand = row.variant === "grand-total"
               const rowCls = isGrand ? "flex justify-between text-base font-semibold pt-2 mt-2 border-t" : "flex justify-between text-sm"
@@ -266,9 +282,64 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
         </div>
       )
     }
+    case "heading-block": {
+      const b = block.props
+      const rowStyle = layoutStripOuterProps(b.boxAlign, b.layoutWidth)
+      const cardStyle: CSSProperties = {
+        ...layoutStripCardProps(b.layoutWidth, b.textAlign),
+      }
+      const bg = b.backgroundColor?.trim()
+      if (bg) cardStyle.backgroundColor = bg
+      const boxH = resolveHeadingBoxMinHeightPx(b.boxHeightPx)
+      if (boxH !== undefined) {
+        cardStyle.minHeight = boxH
+        cardStyle.display = "flex"
+        cardStyle.flexDirection = "column"
+        cardStyle.justifyContent = "center"
+      }
+      return (
+        <div className="w-full min-w-0" style={rowStyle}>
+          <div
+            className={cn(
+              blockRadiusTw,
+              "border border-border p-4 box-border min-w-0",
+              !bg && "bg-card/40",
+            )}
+            style={cardStyle}
+          >
+            <h2
+              className="m-0"
+              style={{
+                fontSize: `${b.fontSize}px`,
+                fontWeight: b.fontWeight,
+                color: b.color,
+                lineHeight: 1.2,
+              }}
+              dangerouslySetInnerHTML={{ __html: inlineRichTextToSafeHtml(b.heading) }}
+            />
+          </div>
+        </div>
+      )
+    }
+    case "text-box": {
+      const b = block.props
+      const rowStyle = layoutStripOuterProps(b.boxAlign, b.layoutWidth)
+      const cardStyle = layoutStripCardProps(b.layoutWidth, b.textAlign)
+      const paragraphCss = `color:${b.color};font-size:${b.fontSize}px;line-height:${b.lineHeight}`
+      const innerHtml = multilineMarkdownToParagraphInnerHtml(b.body, paragraphCss)
+      return (
+        <div className="w-full min-w-0" style={rowStyle}>
+          <div
+            className={cn(blockRadiusTw, "border border-border p-4 box-border bg-card/40 min-w-0 [&_p]:m-0")}
+            style={cardStyle}
+            dangerouslySetInnerHTML={{ __html: innerHtml }}
+          />
+        </div>
+      )
+    }
     case "footer-block":
       return (
-        <div className="border border-border rounded-md p-4">
+        <div className={cn("border border-border p-4", blockRadiusTw)}>
           <p className="text-sm font-medium mb-2" style={{ color: block.props.headingColor }}>
             {block.props.heading}
           </p>
@@ -337,7 +408,17 @@ function FloatingNode({
       />
     )
   } else {
-    body = <div className="w-full h-full px-2 flex items-center text-sm truncate">{element.content || "Text"}</div>
+    const txt = element.content ?? "Text"
+    const inner = multilineMarkdownToParagraphInnerHtml(txt, "")
+    const chrome = floatingTextInnerStyle(element)
+    body = (
+      <div
+        className="w-full h-full overflow-auto px-2 py-1.5 text-sm leading-snug rounded-md [&_p]:leading-snug"
+        style={chrome}
+      >
+        <div dangerouslySetInnerHTML={{ __html: inner }} />
+      </div>
+    )
   }
 
   return (
@@ -523,6 +604,9 @@ export function Canvas() {
     .slice()
     .sort((a, b) => a.zIndex - b.zIndex)
 
+  const blockGapPx = resolveFlowBlockSpacingPx(documentSettings)
+  const blockRadiusTw = flowBlockRadiusTwClass(resolveFlowBlockCornerStyle(documentSettings))
+
   return (
     <main className="flex-1 bg-canvas p-8 overflow-auto">
       <div className="min-h-full flex items-start justify-center">
@@ -536,7 +620,7 @@ export function Canvas() {
         >
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={flowBlocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
-              <div className="p-8 space-y-6">
+              <div className="p-8 flex flex-col" style={{ gap: `${blockGapPx}px` }}>
                 {flowBlocks.map((block) => {
                   const blockFloating = floatingElements
                     .filter((item) => item.anchorMode === "block" && item.anchorTargetId === block.id)
@@ -546,11 +630,12 @@ export function Canvas() {
                     <SortableFlowBlock
                       key={block.id}
                       id={block.id}
-                      label={block.type}
+                      label={flowBlockInspectorLabel(block.type)}
                       isSelected={selection.kind === "flow" && selection.id === block.id}
                       onClick={() => selectFlowBlock(block.id)}
+                      blockRadiusTw={blockRadiusTw}
                     >
-                      {renderFlowBlock(block, documentSettings.primaryColor, documentSettings.baseFontSize)}
+                      {renderFlowBlock(block, documentSettings.primaryColor, documentSettings.baseFontSize, blockRadiusTw)}
                       {blockFloating.map((element) => (
                         <FloatingNode
                           key={element.id}

@@ -1,6 +1,16 @@
 import { createDefaultBlock } from "@/lib/builder/default-template"
+import { DEFAULT_FLOW_BLOCK_CORNER_STYLE } from "@/lib/builder/flow-block-corners"
+import { DEFAULT_FLOW_BLOCK_SPACING_PX } from "@/lib/builder/flow-block-spacing"
 import { createTotalsRowId } from "@/lib/builder/totals-block-utils"
-import type { BuilderState } from "@/lib/builder/types"
+import type { BuilderState, DocumentSettings } from "@/lib/builder/types"
+
+const completeDocumentSettings = (
+  partial: Omit<DocumentSettings, "flowBlockSpacingPx" | "flowBlockCornerStyle">,
+): DocumentSettings => ({
+  ...partial,
+  flowBlockSpacingPx: DEFAULT_FLOW_BLOCK_SPACING_PX,
+  flowBlockCornerStyle: DEFAULT_FLOW_BLOCK_CORNER_STYLE,
+})
 
 export type TemplateMenuCategory = "invoice-proforma" | "receipt" | "other" | "extra"
 export type TemplateMenuStyle = "a" | "b"
@@ -96,14 +106,14 @@ const presetInvoiceCorporate = (): BuilderState => {
   const totals = createDefaultBlock("totals-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Corporate Invoice Template",
       type: "invoice",
       primaryColor: "#334155",
       secondaryColor: "#f1f5f9",
       fontFamily: "Inter, sans-serif",
       baseFontSize: 14,
-    },
+    }),
     flowBlocks: [header, meta, table, totals],
     floatingElements: [],
     ...baseSelectionAndSnap(),
@@ -117,14 +127,14 @@ const presetInvoiceEmeraldProforma = (): BuilderState => {
   const totals = createDefaultBlock("totals-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Proforma Template",
       type: "proforma",
       primaryColor: "#047857",
       secondaryColor: "#ecfdf5",
       fontFamily: "Inter, sans-serif",
       baseFontSize: 14,
-    },
+    }),
     flowBlocks: [
       {
         ...header,
@@ -176,14 +186,14 @@ const presetReceiptItemized = (): BuilderState => {
   const totals = createDefaultBlock("totals-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Itemized Receipt",
       type: "receipt",
       primaryColor: "#1e293b",
       secondaryColor: "#f8fafc",
       fontFamily: "Inter, sans-serif",
       baseFontSize: 13,
-    },
+    }),
     flowBlocks: [
       {
         ...header,
@@ -246,14 +256,14 @@ const presetReceiptStore = (): BuilderState => {
   const footer = createDefaultBlock("footer-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Store Receipt",
       type: "receipt",
       primaryColor: "#c2410c",
       secondaryColor: "#fff7ed",
       fontFamily: "system-ui, sans-serif",
       baseFontSize: 13,
-    },
+    }),
     flowBlocks: [
       {
         ...header,
@@ -319,14 +329,14 @@ const presetOtherQuotation = (): BuilderState => {
   const footer = createDefaultBlock("footer-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Quotation Template",
       type: "invoice",
       primaryColor: "#3730a3",
       secondaryColor: "#eef2ff",
       fontFamily: "Inter, sans-serif",
       baseFontSize: 14,
-    },
+    }),
     flowBlocks: [
       {
         ...header,
@@ -404,14 +414,14 @@ const presetOtherGeneral = (): BuilderState => {
   const footer = createDefaultBlock("footer-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "General Document Template",
       type: "invoice",
       primaryColor: "#44403c",
       secondaryColor: "#fafaf9",
       fontFamily: "Georgia, serif",
       baseFontSize: 14,
-    },
+    }),
     flowBlocks: [
       {
         ...header,
@@ -459,14 +469,14 @@ const presetExtraDelivery = (): BuilderState => {
   const footer = createDefaultBlock("footer-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Delivery Note Template",
       type: "invoice",
       primaryColor: "#0f766e",
       secondaryColor: "#f0fdfa",
       fontFamily: "Inter, sans-serif",
       baseFontSize: 14,
-    },
+    }),
     flowBlocks: [
       {
         ...header,
@@ -536,14 +546,14 @@ const presetExtraCreditMemo = (): BuilderState => {
   const footer = createDefaultBlock("footer-block")
 
   return {
-    documentSettings: {
+    documentSettings: completeDocumentSettings({
       title: "Credit Memo Template",
       type: "invoice",
       primaryColor: "#be123c",
       secondaryColor: "#fff1f2",
       fontFamily: "Inter, sans-serif",
       baseFontSize: 14,
-    },
+    }),
     flowBlocks: [
       {
         ...header,

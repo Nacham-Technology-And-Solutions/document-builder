@@ -1,5 +1,8 @@
 export type DocumentType = "invoice" | "receipt" | "proforma"
 
+/** Sharp vs rounded chrome on flow blocks (canvas + HTML export `.card`). */
+export type FlowBlockCornerStyle = "rounded" | "square"
+
 export interface DocumentSettings {
   title: string
   type: DocumentType
@@ -7,6 +10,9 @@ export interface DocumentSettings {
   secondaryColor: string
   fontFamily: string
   baseFontSize: number
+  /** Vertical gap between flow blocks on canvas and in HTML export (px) */
+  flowBlockSpacingPx: number
+  flowBlockCornerStyle: FlowBlockCornerStyle
 }
 
 export type FlowBlockType =
@@ -14,8 +20,23 @@ export type FlowBlockType =
   | "invoice-meta-grid"
   | "dynamic-table"
   | "totals-block"
+  | "heading-block"
+  | "text-box"
   | "footer-block"
   | "custom-html"
+
+export type FlowBlockWidthMode = "full" | "half"
+
+/** Half-width strips: column sits on left or right */
+export type FlowBlockBoxAlign = "left" | "right"
+
+export type FlowBlockTextAlign = "left" | "center" | "right"
+
+export interface FlowSectionLayoutMixin {
+  layoutWidth: FlowBlockWidthMode
+  boxAlign: FlowBlockBoxAlign
+  textAlign: FlowBlockTextAlign
+}
 
 interface BaseFlowBlock {
   id: string
@@ -108,6 +129,32 @@ export interface TotalsBlock extends BaseFlowBlock {
   }
 }
 
+export interface HeadingBlock extends BaseFlowBlock {
+  type: "heading-block"
+  props: FlowSectionLayoutMixin & {
+    /** Markdown-lite (**bold**, *italic*); tokens `{{ }}` safe */
+    heading: string
+    fontSize: number
+    fontWeight: number
+    color: string
+    /** When set (non-whitespace), fills the heading box; otherwise canvas keeps default tinted surface */
+    backgroundColor?: string
+    /** Minimum inner height in px (floored to 15 when set); vertically centers text when above natural height */
+    boxHeightPx?: number
+  }
+}
+
+export interface TextBoxBlock extends BaseFlowBlock {
+  type: "text-box"
+  props: FlowSectionLayoutMixin & {
+    /** Markdown-lite; one paragraph per line */
+    body: string
+    fontSize: number
+    color: string
+    lineHeight: number
+  }
+}
+
 export interface FooterBlock extends BaseFlowBlock {
   type: "footer-block"
   props: {
@@ -132,6 +179,8 @@ export type FlowBlock =
   | InvoiceMetaGridBlock
   | DynamicTableBlock
   | TotalsBlock
+  | HeadingBlock
+  | TextBoxBlock
   | FooterBlock
   | CustomHtmlBlock
 
@@ -154,6 +203,12 @@ export interface FloatingElement {
   fit?: "contain" | "cover"
   locked?: boolean
   rotation?: number
+  /** Floating `text` only: box fill; omit for default white tint; `transparent` or empty clears fill */
+  textBackgroundColor?: string
+  /** Floating `text` only: border color; `transparent` or blank hides the stroke (when width allows) */
+  textBorderColor?: string
+  /** Floating `text` only: border width in px; `0` removes border; omit defaults to 1px when border is shown */
+  textBorderWidthPx?: number
 }
 
 export interface BuilderSelection {

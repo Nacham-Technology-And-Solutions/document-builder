@@ -82,6 +82,34 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           accentColor: "#e2e8f0",
         },
       }
+    case "heading-block":
+      return {
+        id: buildId(),
+        type: "heading-block",
+        props: {
+          heading: "**Section heading**",
+          fontSize: 20,
+          fontWeight: 600,
+          color: "#0f172a",
+          layoutWidth: "full",
+          boxAlign: "left",
+          textAlign: "left",
+        },
+      }
+    case "text-box":
+      return {
+        id: buildId(),
+        type: "text-box",
+        props: {
+          body: "{{ document.intro }}\nSupporting line with *italic* or **bold**.",
+          fontSize: 14,
+          color: "#334155",
+          lineHeight: 1.45,
+          layoutWidth: "full",
+          boxAlign: "left",
+          textAlign: "left",
+        },
+      }
     case "footer-block":
       return {
         id: buildId(),
@@ -131,7 +159,7 @@ export const createDefaultFloatingElement = (type: FloatingElementType): Floatin
         x: 32,
         y: 760,
         width: 260,
-        height: 24,
+        height: 72,
         zIndex: 30,
         content: "{{ company.phone }} | {{ company.email }}",
         locked: false,
@@ -175,6 +203,8 @@ export const initialBuilderState: BuilderState = {
     secondaryColor: "#f1f5f9",
     fontFamily: "Inter, sans-serif",
     baseFontSize: 14,
+    flowBlockSpacingPx: 24,
+    flowBlockCornerStyle: "rounded",
   },
   flowBlocks: [
     createDefaultBlock("header-banner"),
