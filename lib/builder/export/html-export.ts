@@ -16,7 +16,8 @@ import {
 import { floatingTextChromeForExport } from "@/lib/builder/floating-text-utils"
 import { resolveHeadingBoxMinHeightPx } from "@/lib/builder/heading-block-utils"
 import { getTotalsRows } from "@/lib/builder/totals-block-utils"
-import type { BuilderState, FloatingElement, FlowBlock } from "@/lib/builder/types"
+import { resolveFlowBlockBorderCss } from "@/lib/builder/flow-block-border-utils"
+import type { BuilderState, DynamicTableColumn, FloatingElement, FlowBlock } from "@/lib/builder/types"
 import { buildLoopEndMarker, buildLoopStartMarker } from "@/lib/builder/export/token-utils"
 
 const alignCss: Record<string, string> = {
@@ -80,17 +81,21 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
         .join("")}
     </div>`
 
+      const bannerBorder = escapeHtml(
+        resolveFlowBlockBorderCss(p, { borderColorFallback: p.backgroundColor }),
+      )
       return `
-<section class="block card banner" style="background:${escapeHtml(p.backgroundColor)};border-color:${escapeHtml(p.backgroundColor)};color:${escapeHtml(p.textColor)};margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
+<section class="block card banner" style="background:${escapeHtml(p.backgroundColor)};color:${escapeHtml(p.textColor)};margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;border:${bannerBorder};">
   <div class="banner-content" style="${innerPad};display:flex;flex-direction:${dirCss};align-items:center;justify-content:${justifyCss};gap:${gap}px;box-sizing:border-box;">
     ${leftHtml}
     ${rightHtml}
   </div>
 </section>`
     }
-    case "invoice-meta-grid":
+    case "invoice-meta-grid": {
+      const metaBorder = escapeHtml(resolveFlowBlockBorderCss(block.props))
       return `
-<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
+<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;border:${metaBorder};">
   <div class="grid-2">
     <div>
       <p class="label" style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(block.props.billToLabel)}</p>
@@ -102,16 +107,32 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
     </div>
   </div>
 </section>`
-    case "dynamic-table":
+    }
+    case "dynamic-table": {
       const loopStart = buildLoopStartMarker(block.props.repeaterKey, block.props.itemAlias)
       const loopEnd = buildLoopEndMarker()
+      const colMinCss = (column: DynamicTableColumn) =>
+        typeof column.minWidthPx === "number" && column.minWidthPx > 0 ? `min-width:${Math.min(640, Math.round(column.minWidthPx))}px;` : ""
+      const tableChromeBorder = escapeHtml(
+        resolveFlowBlockBorderCss(
+          {
+            borderMode: block.props.borderMode,
+            borderWidthPx: block.props.borderWidthPx,
+            borderColor: block.props.borderColor,
+          },
+          { borderColorFallback: block.props.borderColor },
+        ),
+      )
       return `
-<section class="block card table-wrap" style="border-color:${escapeHtml(block.props.borderColor)};margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
+<section class="block card table-wrap" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;border:${tableChromeBorder};">
   <table style="font-size:${block.props.fontSize}px;">
     <thead>
       <tr style="background:${escapeHtml(block.props.headerBackgroundColor)};">
         ${block.props.columns
-          .map((column) => `<th style="text-align:${alignCss[column.align] ?? "left"};color:${escapeHtml(block.props.headerTextColor)};">${escapeHtml(column.label)}</th>`)
+          .map(
+            (column) =>
+              `<th style="text-align:${alignCss[column.align] ?? "left"};color:${escapeHtml(block.props.headerTextColor)};${colMinCss(column)}">${escapeHtml(column.label)}</th>`
+          )
           .join("")}
       </tr>
     </thead>
@@ -121,7 +142,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
         ${block.props.columns
           .map(
             (column) =>
-              `<td style="text-align:${alignCss[column.align] ?? "left"};color:${escapeHtml(block.props.rowTextColor)};">{{ ${block.props.itemAlias}.${column.key} }}</td>`
+              `<td style="text-align:${alignCss[column.align] ?? "left"};color:${escapeHtml(block.props.rowTextColor)};${colMinCss(column)}">{{ ${block.props.itemAlias}.${column.key} }}</td>`
           )
           .join("")}
       </tr>
@@ -129,6 +150,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
     </tbody>
   </table>
 </section>`
+    }
     case "totals-block": {
       const rows = getTotalsRows(block.props)
       const rowsHtml = rows
@@ -139,9 +161,10 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
           return `<div class="${cls}"${borderStyle}><span style="color:${escapeHtml(block.props.labelColor)};">${escapeHtml(row.label)}</span><span style="color:${escapeHtml(block.props.valueColor)};">${escapeHtml(row.value)}</span></div>`
         })
         .join("")
+      const totalsBorder = escapeHtml(resolveFlowBlockBorderCss(block.props))
       return `
 <section class="block totals-wrap" style="margin-bottom:${marginBottomPx}px;">
-  <div class="card totals" style="border-radius:${cornerRadiusPx}px;">${rowsHtml}
+  <div class="card totals" style="border-radius:${cornerRadiusPx}px;border:${totalsBorder};">${rowsHtml}
   </div>
 </section>`
     }
@@ -155,7 +178,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
       if (boxH !== undefined) {
         rules += `;min-height:${boxH}px;display:flex;flex-direction:column;justify-content:center`
       }
-      rules += `;border-radius:${cornerRadiusPx}px`
+      rules += `;border-radius:${cornerRadiusPx}px;border:${escapeHtml(resolveFlowBlockBorderCss(b))}`
       return `
 <section class="block" style="margin-bottom:${marginBottomPx}px;">
   <div ${outer}>
@@ -171,7 +194,7 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
       const innerHtml = multilineMarkdownToParagraphInnerHtml(b.body, paragraphCss)
       const outer = layoutStripOuterHtmlAttrs(b.boxAlign, b.layoutWidth)
       let cardRules = layoutStripCardStyleRules(b.layoutWidth, b.textAlign)
-      cardRules += `;border-radius:${cornerRadiusPx}px`
+      cardRules += `;border-radius:${cornerRadiusPx}px;border:${escapeHtml(resolveFlowBlockBorderCss(b))}`
       return `
 <section class="block" style="margin-bottom:${marginBottomPx}px;">
   <div ${outer}>
@@ -181,19 +204,23 @@ const renderFlowBlockHtml = (block: FlowBlock, baseFontSize: number, shell: Flow
   </div>
 </section>`
     }
-    case "footer-block":
+    case "footer-block": {
+      const footBorder = escapeHtml(resolveFlowBlockBorderCss(block.props))
       return `
-<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
+<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;border:${footBorder};">
   <p class="footer-title" style="color:${escapeHtml(block.props.headingColor)};">${escapeHtml(block.props.heading)}</p>
   ${block.props.lines.map((line) => `<p style="color:${escapeHtml(block.props.textColor)};">${inlineRichTextToSafeHtml(line)}</p>`).join("")}
 </section>`
-    case "custom-html":
+    }
+    case "custom-html": {
+      const customBorder = escapeHtml(resolveFlowBlockBorderCss(block.props))
       return `
-<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;">
+<section class="block card" style="margin-bottom:${marginBottomPx}px;border-radius:${cornerRadiusPx}px;border:${customBorder};">
   <p class="footer-title">${escapeHtml(block.props.label)}</p>
   ${block.props.css ? `<style>${block.props.css}</style>` : ""}
   ${block.props.html}
 </section>`
+    }
   }
 }
 

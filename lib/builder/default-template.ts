@@ -1,3 +1,4 @@
+import { createDynamicTableColumn, normalizeImportedFlowBlocks } from "@/lib/builder/dynamic-table-utils"
 import { createDefaultTotalsRows } from "@/lib/builder/totals-block-utils"
 import type { BuilderState, FloatingElement, FloatingElementType, FlowBlock, FlowBlockType } from "@/lib/builder/types"
 
@@ -59,10 +60,10 @@ export const createDefaultBlock = (type: FlowBlockType): FlowBlock => {
           repeaterKey: "invoice.items",
           itemAlias: "item",
           columns: [
-            { key: "description", label: "Description", align: "left" },
-            { key: "quantity", label: "Qty", align: "center" },
-            { key: "rate", label: "Rate", align: "right" },
-            { key: "amount", label: "Amount", align: "right" },
+            createDynamicTableColumn({ key: "description", label: "Description", align: "left" }),
+            createDynamicTableColumn({ key: "quantity", label: "Qty", align: "center" }),
+            createDynamicTableColumn({ key: "rate", label: "Rate", align: "right" }),
+            createDynamicTableColumn({ key: "amount", label: "Amount", align: "right" }),
           ],
           headerBackgroundColor: "#f1f5f9",
           headerTextColor: "#64748b",
@@ -206,12 +207,12 @@ export const initialBuilderState: BuilderState = {
     flowBlockSpacingPx: 24,
     flowBlockCornerStyle: "rounded",
   },
-  flowBlocks: [
+  flowBlocks: normalizeImportedFlowBlocks([
     createDefaultBlock("header-banner"),
     createDefaultBlock("invoice-meta-grid"),
     createDefaultBlock("dynamic-table"),
     createDefaultBlock("totals-block"),
-  ],
+  ]),
   floatingElements: [],
   selection: {
     kind: "flow",

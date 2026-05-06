@@ -38,6 +38,13 @@ export interface FlowSectionLayoutMixin {
   textAlign: FlowBlockTextAlign
 }
 
+/** Border around the block chrome (canvas + export); omit → solid 1px defaults per block */
+export interface FlowBlockBorderMixin {
+  borderMode?: "none" | "solid"
+  borderColor?: string
+  borderWidthPx?: number
+}
+
 interface BaseFlowBlock {
   id: string
   type: FlowBlockType
@@ -49,7 +56,7 @@ interface BaseFlowBlock {
 
 export interface HeaderBannerBlock extends BaseFlowBlock {
   type: "header-banner"
-  props: {
+  props: FlowBlockBorderMixin & {
     heading: string
     /** Lines under the title — tokens or static text */
     leftLines?: string[]
@@ -85,7 +92,7 @@ export interface HeaderBannerBlock extends BaseFlowBlock {
 
 export interface InvoiceMetaGridBlock extends BaseFlowBlock {
   type: "invoice-meta-grid"
-  props: {
+  props: FlowBlockBorderMixin & {
     billToLabel: string
     payToLabel: string
     leftLines: string[]
@@ -95,21 +102,29 @@ export interface InvoiceMetaGridBlock extends BaseFlowBlock {
   }
 }
 
+export interface DynamicTableColumn {
+  /** Stable id for React keys and reorder; added by normalizer when missing */
+  id?: string
+  key: string
+  label: string
+  align: "left" | "center" | "right"
+  /** Minimum column width in px when set (> 0); canvas + HTML export apply to `<th>` / `<td>` */
+  minWidthPx?: number
+}
+
 export interface DynamicTableBlock extends BaseFlowBlock {
   type: "dynamic-table"
   props: {
     repeaterKey: string
     itemAlias: string
-    columns: Array<{
-      key: string
-      label: string
-      align: "left" | "center" | "right"
-    }>
+    columns: DynamicTableColumn[]
     headerBackgroundColor: string
     headerTextColor: string
     rowTextColor: string
     borderColor: string
     fontSize: number
+    borderMode?: FlowBlockBorderMixin["borderMode"]
+    borderWidthPx?: number
   }
 }
 
@@ -125,7 +140,7 @@ export interface TotalsRow {
 
 export interface TotalsBlock extends BaseFlowBlock {
   type: "totals-block"
-  props: {
+  props: FlowBlockBorderMixin & {
     rows: TotalsRow[]
     labelColor: string
     valueColor: string
@@ -135,7 +150,7 @@ export interface TotalsBlock extends BaseFlowBlock {
 
 export interface HeadingBlock extends BaseFlowBlock {
   type: "heading-block"
-  props: FlowSectionLayoutMixin & {
+  props: FlowSectionLayoutMixin & FlowBlockBorderMixin & {
     /** Markdown-lite (**bold**, *italic*); tokens `{{ }}` safe */
     heading: string
     fontSize: number
@@ -150,7 +165,7 @@ export interface HeadingBlock extends BaseFlowBlock {
 
 export interface TextBoxBlock extends BaseFlowBlock {
   type: "text-box"
-  props: FlowSectionLayoutMixin & {
+  props: FlowSectionLayoutMixin & FlowBlockBorderMixin & {
     /** Markdown-lite; one paragraph per line */
     body: string
     fontSize: number
@@ -161,7 +176,7 @@ export interface TextBoxBlock extends BaseFlowBlock {
 
 export interface FooterBlock extends BaseFlowBlock {
   type: "footer-block"
-  props: {
+  props: FlowBlockBorderMixin & {
     heading: string
     lines: string[]
     headingColor: string
@@ -171,7 +186,7 @@ export interface FooterBlock extends BaseFlowBlock {
 
 export interface CustomHtmlBlock extends BaseFlowBlock {
   type: "custom-html"
-  props: {
+  props: FlowBlockBorderMixin & {
     label: string
     html: string
     css: string

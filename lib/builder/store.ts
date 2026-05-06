@@ -2,6 +2,7 @@
 
 import { create } from "zustand"
 import { createDefaultBlock, createDefaultFloatingElement, initialBuilderState } from "@/lib/builder/default-template"
+import { normalizeImportedFlowBlocks } from "@/lib/builder/dynamic-table-utils"
 import type { BuilderState, FloatingElementType, FlowBlock, FlowBlockType } from "@/lib/builder/types"
 
 interface BuilderActions {
@@ -242,7 +243,7 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
     set((current) =>
       withHistory(current, {
         documentSettings: state.documentSettings,
-        flowBlocks: state.flowBlocks,
+        flowBlocks: normalizeImportedFlowBlocks(state.flowBlocks),
         floatingElements: state.floatingElements,
         selection: {
           kind: null,
@@ -254,7 +255,7 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
   replaceBuilderState: (state) =>
     set({
       documentSettings: state.documentSettings,
-      flowBlocks: state.flowBlocks,
+      flowBlocks: normalizeImportedFlowBlocks(state.flowBlocks),
       floatingElements: state.floatingElements,
       selection: { kind: null, id: null },
       snapToGrid: state.snapToGrid ?? true,

@@ -26,6 +26,8 @@ import {
   resolveFlowBlockCornersForBlock,
   resolveFlowBlockSpacingAfterPx,
 } from "@/lib/builder/flow-block-layout-resolve"
+import { columnMinWidthStyle } from "@/lib/builder/dynamic-table-utils"
+import { DEFAULT_FLOW_BLOCK_BORDER_COLOR, flowBlockBorderStyle } from "@/lib/builder/flow-block-border-utils"
 import { floatingTextInnerStyle } from "@/lib/builder/floating-text-utils"
 import { resolveHeadingBoxMinHeightPx } from "@/lib/builder/heading-block-utils"
 import { layoutStripCardProps, layoutStripOuterProps } from "@/lib/builder/flow-section-layout"
@@ -152,6 +154,7 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
             paddingRight: px,
             paddingTop: py,
             paddingBottom: py,
+            ...flowBlockBorderStyle(p, { borderColorFallback: p.backgroundColor || primaryColor }),
           }}
         >
           <div
@@ -206,7 +209,10 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
     }
     case "invoice-meta-grid":
       return (
-        <div className={cn("grid grid-cols-2 gap-6 p-4 border border-border", blockRadiusTw)}>
+        <div
+          className={cn("grid grid-cols-2 gap-6 p-4 box-border", blockRadiusTw)}
+          style={flowBlockBorderStyle(block.props, { borderColorFallback: DEFAULT_FLOW_BLOCK_BORDER_COLOR })}
+        >
           <div>
             <p className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: block.props.labelColor }}>
               {block.props.billToLabel}
@@ -237,15 +243,25 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
       )
     case "dynamic-table":
       return (
-        <div className={cn(blockRadiusTw, "overflow-hidden")} style={{ border: `1px solid ${block.props.borderColor}` }}>
+        <div
+          className={cn(blockRadiusTw, "overflow-hidden box-border")}
+          style={flowBlockBorderStyle(
+            {
+              borderMode: block.props.borderMode,
+              borderWidthPx: block.props.borderWidthPx,
+              borderColor: block.props.borderColor,
+            },
+            { borderColorFallback: block.props.borderColor },
+          )}
+        >
           <table className="w-full" style={{ fontSize: `${block.props.fontSize}px` }}>
             <thead>
               <tr style={{ backgroundColor: block.props.headerBackgroundColor }}>
                 {block.props.columns.map((column) => (
                   <th
-                    key={column.key}
+                    key={column.id ?? column.key}
                     className={`text-xs font-medium uppercase tracking-wider p-3 ${alignClassName[column.align] ?? "text-left"}`}
-                    style={{ color: block.props.headerTextColor }}
+                    style={{ color: block.props.headerTextColor, ...columnMinWidthStyle(column.minWidthPx) }}
                   >
                     {column.label}
                   </th>
@@ -256,9 +272,9 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
               <tr className="text-sm">
                 {block.props.columns.map((column) => (
                   <td
-                    key={column.key}
+                    key={column.id ?? column.key}
                     className={`p-3 ${alignClassName[column.align] ?? "text-left"}`}
-                    style={{ color: block.props.rowTextColor }}
+                    style={{ color: block.props.rowTextColor, ...columnMinWidthStyle(column.minWidthPx) }}
                   >
                     {`{{ ${block.props.itemAlias}.${column.key} }}`}
                   </td>
@@ -270,7 +286,10 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
       )
     case "custom-html":
       return (
-        <div className={cn("border border-border p-4", blockRadiusTw)}>
+        <div
+          className={cn("box-border p-4", blockRadiusTw)}
+          style={flowBlockBorderStyle(block.props, { borderColorFallback: DEFAULT_FLOW_BLOCK_BORDER_COLOR })}
+        >
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{block.props.label}</p>
           {block.props.css ? <style>{block.props.css}</style> : null}
           <div dangerouslySetInnerHTML={{ __html: block.props.html }} />
@@ -280,7 +299,10 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
       const rows = getTotalsRows(block.props)
       return (
         <div className="flex justify-end">
-          <div className={cn("w-64 space-y-2 p-4 border border-border", blockRadiusTw)}>
+          <div
+            className={cn("w-64 space-y-2 p-4 box-border", blockRadiusTw)}
+            style={flowBlockBorderStyle(block.props, { borderColorFallback: DEFAULT_FLOW_BLOCK_BORDER_COLOR })}
+          >
             {rows.map((row) => {
               const isGrand = row.variant === "grand-total"
               const rowCls = isGrand ? "flex justify-between text-base font-semibold pt-2 mt-2 border-t" : "flex justify-between text-sm"
@@ -314,14 +336,14 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
         cardStyle.flexDirection = "column"
         cardStyle.justifyContent = "center"
       }
+      Object.assign(
+        cardStyle,
+        flowBlockBorderStyle(b, { borderColorFallback: DEFAULT_FLOW_BLOCK_BORDER_COLOR }),
+      )
       return (
         <div className="w-full min-w-0" style={rowStyle}>
           <div
-            className={cn(
-              blockRadiusTw,
-              "border border-border p-4 box-border min-w-0",
-              !bg && "bg-card/40",
-            )}
+            className={cn(blockRadiusTw, "p-4 box-border min-w-0", !bg && "bg-card/40")}
             style={cardStyle}
           >
             <h2
@@ -341,13 +363,16 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
     case "text-box": {
       const b = block.props
       const rowStyle = layoutStripOuterProps(b.boxAlign, b.layoutWidth)
-      const cardStyle = layoutStripCardProps(b.layoutWidth, b.textAlign)
+      const cardStyle: CSSProperties = {
+        ...layoutStripCardProps(b.layoutWidth, b.textAlign),
+        ...flowBlockBorderStyle(b, { borderColorFallback: DEFAULT_FLOW_BLOCK_BORDER_COLOR }),
+      }
       const paragraphCss = `color:${b.color};font-size:${b.fontSize}px;line-height:${b.lineHeight}`
       const innerHtml = multilineMarkdownToParagraphInnerHtml(b.body, paragraphCss)
       return (
         <div className="w-full min-w-0" style={rowStyle}>
           <div
-            className={cn(blockRadiusTw, "border border-border p-4 box-border bg-card/40 min-w-0 [&_p]:m-0")}
+            className={cn(blockRadiusTw, "p-4 box-border bg-card/40 min-w-0 [&_p]:m-0")}
             style={cardStyle}
             dangerouslySetInnerHTML={{ __html: innerHtml }}
           />
@@ -356,7 +381,10 @@ function renderFlowBlock(block: FlowBlock, primaryColor: string, baseFontSize: n
     }
     case "footer-block":
       return (
-        <div className={cn("border border-border p-4", blockRadiusTw)}>
+        <div
+          className={cn("box-border p-4", blockRadiusTw)}
+          style={flowBlockBorderStyle(block.props, { borderColorFallback: DEFAULT_FLOW_BLOCK_BORDER_COLOR })}
+        >
           <p className="text-sm font-medium mb-2" style={{ color: block.props.headingColor }}>
             {block.props.heading}
           </p>

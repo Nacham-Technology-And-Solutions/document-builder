@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { createDynamicTableColumn, moveDynamicTableColumn } from "@/lib/builder/dynamic-table-utils"
+import { FlowBlockBorderFields } from "@/components/template-builder/flow-block-border-fields"
 import { flowBlockInspectorLabel } from "@/lib/builder/flow-block-labels"
 import { createTotalsRowId } from "@/lib/builder/totals-block-utils"
 import { resolveFlowBlockCornerStyle } from "@/lib/builder/flow-block-corners"
@@ -256,56 +258,160 @@ export function RightSidebar() {
                   className="h-8 text-sm"
                 />
               </div>
+              <FlowBlockBorderFields
+                showColorField={false}
+                value={{
+                  borderMode: selectedDynamicTable.props.borderMode,
+                  borderWidthPx: selectedDynamicTable.props.borderWidthPx,
+                }}
+                onPatch={(patch) => updateDynamicTableProps(selectedDynamicTable.id, patch)}
+              />
               <div className="space-y-3">
-                {selectedDynamicTable.props.columns.map((column, index) => (
-                  <div key={column.key} className="space-y-2 rounded-md border border-border p-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Column Key</Label>
-                      <Input
-                        value={column.key}
-                        onChange={(event) => {
-                          const nextColumns = [...selectedDynamicTable.props.columns]
-                          nextColumns[index] = { ...nextColumns[index], key: event.target.value }
-                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
-                        }}
-                        className="h-8 text-sm font-mono"
-                      />
+                {selectedDynamicTable.props.columns.map((column, index) => {
+                  const columns = selectedDynamicTable.props.columns
+                  const persistColumns = (next: typeof columns) =>
+                    updateDynamicTableProps(selectedDynamicTable.id, { columns: next })
+                  const canRemove = columns.length > 1
+                  return (
+                    <div key={column.id ?? `${column.key}-${index}`} className="space-y-2 rounded-md border border-border p-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground">Column {index + 1}</span>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={index === 0}
+                            title="Move up"
+                            aria-label="Move column up"
+                            onClick={() =>
+                              persistColumns(moveDynamicTableColumn(columns, index, -1))
+                            }
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={index === columns.length - 1}
+                            title="Move down"
+                            aria-label="Move column down"
+                            onClick={() =>
+                              persistColumns(moveDynamicTableColumn(columns, index, 1))
+                            }
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            disabled={!canRemove}
+                            title={canRemove ? "Remove column" : "Keep at least one column"}
+                            aria-label="Remove column"
+                            onClick={() =>
+                              persistColumns(columns.filter((_, idx) => idx !== index))
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Column Key</Label>
+                        <Input
+                          value={column.key}
+                          onChange={(event) => {
+                            const nextColumns = [...columns]
+                            nextColumns[index] = { ...nextColumns[index], key: event.target.value }
+                            persistColumns(nextColumns)
+                          }}
+                          className="h-8 text-sm font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Column Label</Label>
+                        <Input
+                          value={column.label}
+                          onChange={(event) => {
+                            const nextColumns = [...columns]
+                            nextColumns[index] = { ...nextColumns[index], label: event.target.value }
+                            persistColumns(nextColumns)
+                          }}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Alignment</Label>
+                        <Select
+                          value={column.align}
+                          onValueChange={(value: "left" | "center" | "right") => {
+                            const nextColumns = [...columns]
+                            nextColumns[index] = { ...nextColumns[index], align: value }
+                            persistColumns(nextColumns)
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="left">Left</SelectItem>
+                            <SelectItem value="center">Center</SelectItem>
+                            <SelectItem value="right">Right</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Minimum width (px)</Label>
+                        <p className="text-[11px] text-muted-foreground">Optional; leave empty for auto width.</p>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={640}
+                          step={1}
+                          placeholder="Auto"
+                          value={typeof column.minWidthPx === "number" ? column.minWidthPx : ""}
+                          onChange={(event) => {
+                            const raw = event.target.value.trim()
+                            const nextColumns = [...columns]
+                            if (raw === "") {
+                              nextColumns[index] = { ...nextColumns[index], minWidthPx: undefined }
+                              persistColumns(nextColumns)
+                              return
+                            }
+                            const n = Number(raw)
+                            if (!Number.isFinite(n) || n <= 0) return
+                            nextColumns[index] = {
+                              ...nextColumns[index],
+                              minWidthPx: Math.min(640, Math.round(n)),
+                            }
+                            persistColumns(nextColumns)
+                          }}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Column Label</Label>
-                      <Input
-                        value={column.label}
-                        onChange={(event) => {
-                          const nextColumns = [...selectedDynamicTable.props.columns]
-                          nextColumns[index] = { ...nextColumns[index], label: event.target.value }
-                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
-                        }}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Alignment</Label>
-                      <Select
-                        value={column.align}
-                        onValueChange={(value: "left" | "center" | "right") => {
-                          const nextColumns = [...selectedDynamicTable.props.columns]
-                          nextColumns[index] = { ...nextColumns[index], align: value }
-                          updateDynamicTableProps(selectedDynamicTable.id, { columns: nextColumns })
-                        }}
-                      >
-                        <SelectTrigger className="h-8 text-sm w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="left">Left</SelectItem>
-                          <SelectItem value="center">Center</SelectItem>
-                          <SelectItem value="right">Right</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() =>
+                  updateDynamicTableProps(selectedDynamicTable.id, {
+                    columns: [...selectedDynamicTable.props.columns, createDynamicTableColumn()],
+                  })
+                }
+              >
+                <Plus className="h-4 w-4 mr-2" aria-hidden />
+                Add column
+              </Button>
             </section>
           )}
 
@@ -681,6 +787,16 @@ export function RightSidebar() {
                   </Select>
                 </div>
               </div>
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                colorPlaceholder={selectedBlock.props.backgroundColor || documentSettings.primaryColor}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "header-banner") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
+                }
+              />
             </section>
           )}
 
@@ -771,6 +887,15 @@ export function RightSidebar() {
                   className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
                 />
               </div>
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "invoice-meta-grid") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
+                }
+              />
             </section>
           )}
 
@@ -811,6 +936,15 @@ export function RightSidebar() {
                     ...block,
                     props: { ...(block as typeof selectedBlock).props, accentColor: next },
                   }))
+                }
+              />
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "totals-block") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
                 }
               />
               <div className="flex items-center justify-end">
@@ -1155,6 +1289,15 @@ export function RightSidebar() {
                   className="h-8 text-sm"
                 />
               </div>
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "heading-block") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
+                }
+              />
             </section>
           )}
 
@@ -1274,6 +1417,15 @@ export function RightSidebar() {
                   className="h-8 text-sm"
                 />
               </div>
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "text-box") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
+                }
+              />
             </section>
           )}
 
@@ -1329,6 +1481,15 @@ export function RightSidebar() {
                   className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs"
                 />
               </div>
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "footer-block") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
+                }
+              />
             </section>
           )}
 
@@ -1374,6 +1535,15 @@ export function RightSidebar() {
                   className="w-full min-h-20 rounded-md border border-border bg-background px-2 py-1 text-xs font-mono"
                 />
               </div>
+              <FlowBlockBorderFields
+                value={selectedBlock.props}
+                onPatch={(patch) =>
+                  updateSelectedFlow((block) => {
+                    if (block.type !== "custom-html") return block
+                    return { ...block, props: { ...block.props, ...patch } }
+                  })
+                }
+              />
             </section>
           )}
 

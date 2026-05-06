@@ -1,4 +1,5 @@
 import { createDefaultBlock } from "@/lib/builder/default-template"
+import { normalizeImportedFlowBlocks } from "@/lib/builder/dynamic-table-utils"
 import { DEFAULT_FLOW_BLOCK_CORNER_STYLE } from "@/lib/builder/flow-block-corners"
 import { DEFAULT_FLOW_BLOCK_SPACING_PX } from "@/lib/builder/flow-block-spacing"
 import { createTotalsRowId } from "@/lib/builder/totals-block-utils"
@@ -629,14 +630,21 @@ const presetExtraCreditMemo = (): BuilderState => {
 }
 
 export function getPresetBuilderState(category: TemplateMenuCategory, style: TemplateMenuStyle): BuilderState {
-  if (category === "invoice-proforma") {
-    return style === "a" ? presetInvoiceCorporate() : presetInvoiceEmeraldProforma()
-  }
-  if (category === "receipt") {
-    return style === "a" ? presetReceiptItemized() : presetReceiptStore()
-  }
-  if (category === "other") {
-    return style === "a" ? presetOtherQuotation() : presetOtherGeneral()
-  }
-  return style === "a" ? presetExtraDelivery() : presetExtraCreditMemo()
+  const raw =
+    category === "invoice-proforma"
+      ? style === "a"
+        ? presetInvoiceCorporate()
+        : presetInvoiceEmeraldProforma()
+      : category === "receipt"
+        ? style === "a"
+          ? presetReceiptItemized()
+          : presetReceiptStore()
+        : category === "other"
+          ? style === "a"
+            ? presetOtherQuotation()
+            : presetOtherGeneral()
+          : style === "a"
+            ? presetExtraDelivery()
+            : presetExtraCreditMemo()
+  return { ...raw, flowBlocks: normalizeImportedFlowBlocks(raw.flowBlocks) }
 }
